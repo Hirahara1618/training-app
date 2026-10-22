@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>西条トレーニング手帳</title>
+<title>トレーニング手帳</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#eef1f4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f141a" media="(prefers-color-scheme: dark)">
@@ -172,7 +172,7 @@ table.log td:first-child{color:var(--muted);white-space:nowrap;width:4.5rem}
 <script>
 /* local storage stand-in for the Claude database: same calls (doc / collection / onSnapshot / set / delete), kept in this phone's browser */
 (function(){
-const KEY="tlog-data-v1",SEED={"program": {"current": {"days": [{"exercises": [{"id": "bench", "inc": 2.5, "muscle": "胸", "name": "ベンチプレス", "note": "アップ：40kg×8、50kg×5、55kg×2。メインの後に50kg×8を1セット（セットを追加して記録）", "repMax": 5, "repMin": 5, "rest": 180, "rir": "2", "sets": 3, "start": 57.5}, {"bw": true, "id": "chin", "inc": 0, "muscle": "背中", "name": "チンニング", "note": "最後のセットはディップ/チン・アシストを使ってもよい", "repMax": 10, "repMin": 6, "rest": 150, "rir": "1〜2", "sets": 3, "start": 0}, {"id": "ilrow", "inc": 2.5, "muscle": "背中", "name": "インクライン・レバー・ロウ", "repMax": 10, "repMin": 8, "rest": 120, "rir": "1〜2", "sets": 3, "start": null}, {"id": "ohp", "inc": 2.5, "muscle": "肩", "name": "オーバーヘッドプレス", "repMax": 8, "repMin": 6, "rest": 150, "rir": "2", "sets": 3, "start": 27.5}, {"id": "idcurl", "inc": 1, "muscle": "二頭", "name": "インクラインダンベルカール", "note": "片手の重量。腕が伸びた位置までしっかり下ろす", "repMax": 12, "repMin": 8, "rest": 90, "rir": "0〜1", "sets": 2, "start": 9}, {"id": "ohte", "inc": 2.3, "muscle": "三頭", "name": "オーバーヘッドトライセプスエクステンション", "note": "FTS・グライドで行う。ケーブルは5ポンド（約2.3kg）刻み", "repMax": 12, "repMin": 8, "rest": 90, "rir": "0〜1", "sets": 2, "start": 32}], "key": "mon", "title": "上半身A（筋力）"}, {"exercises": [{"id": "squat", "inc": 2.5, "muscle": "前もも", "name": "バックスクワット", "note": "アップ：40kg×8、50kg×5、55kg×2", "repMax": 5, "repMin": 5, "rest": 180, "rir": "2", "sets": 3, "start": 60}, {"id": "rdl", "inc": 2.5, "muscle": "もも裏", "name": "ルーマニアンデッドリフト", "note": "もも裏が伸びるところまで下ろす。最初は軽めでフォームを固める", "repMax": 10, "repMin": 8, "rest": 150, "rir": "2", "sets": 3, "start": 40}, {"id": "alp", "inc": 5, "muscle": "前もも", "name": "アングルド・レッグ・プレス", "note": "深く下ろす", "repMax": 12, "repMin": 10, "rest": 120, "rir": "1〜2", "sets": 3, "start": null}, {"id": "plc", "inc": 2.3, "muscle": "もも裏", "name": "プローン・レッグ・カール", "note": "脚が伸びきった位置で一瞬止める", "repMax": 15, "repMin": 10, "rest": 90, "rir": "0〜1", "sets": 3, "start": 32}, {"id": "calf", "inc": 2.3, "muscle": "ふくらはぎ", "name": "カーフ・エクステンション", "note": "一番伸びた位置で2秒止める", "repMax": 15, "repMin": 10, "rest": 90, "rir": "0〜1", "sets": 3, "start": 55}, {"id": "abmachine", "inc": 2.3, "muscle": "腹", "name": "アブドミナル（マシン）", "repMax": 15, "repMin": 10, "rest": 90, "rir": "1", "sets": 3, "start": 45}], "key": "tue", "title": "下半身A（スクワット）"}, {"exercises": [{"id": "idpress", "inc": 1, "muscle": "胸", "name": "インクラインダンベルプレス", "note": "片手の重量。胸が伸びる深さまで下ろす", "repMax": 12, "repMin": 8, "rest": 120, "rir": "1〜2", "sets": 3, "start": 14}, {"id": "latpd", "inc": 2.3, "muscle": "背中", "name": "ラット・プルダウン", "repMax": 12, "repMin": 8, "rest": 120, "rir": "1〜2", "sets": 3, "start": 36}, {"id": "pecfly", "inc": 2.3, "muscle": "胸", "name": "ペック・フライ", "note": "リア・デルト/ペック・フライのマシン", "repMax": 15, "repMin": 10, "rest": 90, "rir": "0〜1", "sets": 3, "start": 34}, {"id": "srow", "inc": 2.3, "muscle": "背中", "name": "シーテッド・ロウ", "repMax": 12, "repMin": 10, "rest": 120, "rir": "1〜2", "sets": 3, "start": 32}, {"id": "latraise", "inc": 2.3, "muscle": "肩", "name": "ラテラル・レイズ（マシン）", "repMax": 15, "repMin": 12, "rest": 90, "rir": "0〜1", "sets": 4, "start": null}, {"id": "reardelt", "inc": 2.3, "muscle": "肩", "name": "リア・デルト", "note": "ペック・フライと同じマシンを逆向きに使う", "repMax": 15, "repMin": 12, "rest": 90, "rir": "0〜1", "sets": 2, "start": null}, {"bw": true, "id": "dips", "inc": 0, "muscle": "胸", "name": "ディップス", "repMax": 12, "repMin": 8, "rest": 120, "rir": "1", "sets": 2, "start": 0}], "key": "wed", "title": "上半身B（筋肥大）"}, {"exercises": [{"id": "deadlift", "inc": 2.5, "muscle": "もも裏", "name": "デッドリフト", "note": "アップ：40kg×8、50kg×5、60kg×2", "repMax": 5, "repMin": 5, "rest": 180, "rir": "2〜3", "sets": 3, "start": 62.5}, {"id": "bss", "inc": 1, "muscle": "前もも", "name": "ブルガリアンスクワット", "note": "片手のダンベル重量。回数は片脚ずつ", "repMax": 12, "repMin": 8, "rest": 120, "rir": "1〜2", "sets": 3, "start": 9}, {"id": "legext", "inc": 2.3, "muscle": "前もも", "name": "レッグ・エクステンション", "repMax": 15, "repMin": 12, "rest": 90, "rir": "0〜1", "sets": 3, "start": 50}, {"id": "plc", "inc": 2.3, "muscle": "もも裏", "name": "プローン・レッグ・カール", "note": "脚が伸びきった位置で一瞬止める", "repMax": 15, "repMin": 10, "rest": 90, "rir": "0〜1", "sets": 3, "start": 32}, {"id": "calf", "inc": 2.3, "muscle": "ふくらはぎ", "name": "カーフ・エクステンション", "note": "一番伸びた位置で2秒止める", "repMax": 15, "repMin": 10, "rest": 90, "rir": "0〜1", "sets": 3, "start": 55}, {"bw": true, "id": "vcrunch", "inc": 0, "muscle": "腹", "name": "Vクランチ", "repMax": 15, "repMin": 10, "rest": 90, "rir": "1", "sets": 3, "start": 0}], "key": "thu", "title": "下半身B（デッドリフト）"}, {"exercises": [{"id": "bench8", "inc": 2.5, "muscle": "胸", "name": "ベンチプレス（8回）", "repMax": 8, "repMin": 8, "rest": 150, "rir": "2", "sets": 3, "start": 52.5}, {"id": "divpd", "inc": 2.3, "muscle": "背中", "name": "ダイバージング・ラット・プルダウン", "repMax": 12, "repMin": 8, "rest": 120, "rir": "1〜2", "sets": 3, "start": null}, {"id": "cspress", "inc": 2.3, "muscle": "肩", "name": "コンバージング・ショルダー・プレス", "repMax": 12, "repMin": 8, "rest": 120, "rir": "1〜2", "sets": 2, "start": null}, {"id": "cablelr", "inc": 2.3, "muscle": "肩", "name": "ケーブルサイドレイズ", "note": "FTS・グライドで行う。ケーブルは5ポンド（約2.3kg）刻み", "repMax": 15, "repMin": 12, "rest": 90, "rir": "0〜1", "sets": 3, "start": 11}, {"id": "preacher", "inc": 2.5, "muscle": "二頭", "name": "プリーチャーカール", "repMax": 12, "repMin": 8, "rest": 90, "rir": "0〜1", "sets": 3, "start": 20}, {"id": "hammer", "inc": 2.3, "muscle": "二頭", "name": "ケーブルハンマーカール", "note": "ケーブルは5ポンド（約2.3kg）刻み", "repMax": 12, "repMin": 10, "rest": 90, "rir": "0〜1", "sets": 2, "start": 27}, {"id": "pushdown", "inc": 2.3, "muscle": "三頭", "name": "ケーブルプレスダウン", "note": "ケーブルは5ポンド（約2.3kg）刻み", "repMax": 15, "repMin": 10, "rest": 90, "rir": "0〜1", "sets": 3, "start": 41}], "key": "fri", "title": "上半身C（ベンチ2回目＋肩・腕）"}], "name": "HYPER FIT24 西条店 週5日メニュー", "updatedAt": "2026-10-21"}}, "workouts": {}, "bodyweight": {}};
+const KEY="tlog-data-v1",SEED={"program": {}, "workouts": {}, "bodyweight": {}};
 let data=null;try{data=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){}
 if(!data||typeof data!=="object"){data=SEED;try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
 const subs=[];
@@ -203,7 +203,7 @@ if("serviceWorker" in navigator&&location.protocol!=="file:")window.addEventList
 </script>
 <div class="wrap">
   <header>
-    <div class="brand"><h1>西条トレーニング手帳</h1><span class="status" id="status">接続中…</span></div>
+    <div class="brand"><h1>トレーニング手帳</h1><span class="status" id="status">接続中…</span></div>
     <div class="tabs" role="tablist">
       <button id="tab-today" role="tab" aria-selected="true" data-tab="today">今日</button>
       <button id="tab-parts" role="tab" aria-selected="false" data-tab="parts">部位別</button>
@@ -230,7 +230,58 @@ if("serviceWorker" in navigator&&location.protocol!=="file:")window.addEventList
 "use strict";
 const WD=["","月","火","水","木","金","土","日"];
 const KEY_WD={mon:1,tue:2,wed:3,thu:4,fri:5,sat:6,sun:7};
-const MUSCLES=["胸","背中","肩","二頭","三頭","前もも","もも裏","ふくらはぎ","腹"];
+const MUSCLES=["胸","背中","肩","二頭","三頭","前もも","もも裏","お尻","ふくらはぎ","腹"],PARTS=MUSCLES.concat(["有酸素"]);
+/* ---------- built-in exercise catalog: common gym exercises with sensible defaults ----------
+   E(id,name,part,sets,repMin,repMax,rir,rest,inc,extra) ; cardio items log minutes / km / intensity */
+const E=(id,name,muscle,sets,repMin,repMax,rir,rest,inc,x)=>Object.assign({id,name,muscle,sets,repMin,repMax,rir,rest,inc,start:null,note:""},x||{});
+const BW={bw:true,inc:0},CARDIO=x=>Object.assign({cardio:true,sets:1,rir:"",rest:0,inc:0},x||{});
+const CATALOG=[
+ E("bench","ベンチプレス","胸",3,5,8,"1〜2",180,2.5),E("c_inbench","インクラインベンチプレス","胸",3,6,10,"1〜2",150,2.5),
+ E("c_dbpress","ダンベルプレス","胸",3,8,12,"1〜2",120,1,{note:"片手の重量"}),E("idpress","インクラインダンベルプレス","胸",3,8,12,"1〜2",120,1,{note:"片手の重量"}),
+ E("c_chestpress","チェストプレス（マシン）","胸",3,8,12,"1〜2",120,2.5),E("pecfly","ペック・フライ","胸",3,10,15,"0〜1",90,2.5),
+ E("c_dbfly","ダンベルフライ","胸",3,10,15,"1〜2",90,1,{note:"片手の重量"}),E("c_cablecross","ケーブルクロスオーバー","胸",3,12,15,"0〜1",90,2.5),
+ E("dips","ディップス","胸",3,8,12,"1〜2",120,0,BW),E("c_pushup","腕立て伏せ","胸",3,10,20,"1〜2",90,0,BW),
+ E("deadlift","デッドリフト","背中",3,3,6,"2〜3",180,2.5),E("chin","チンニング（逆手懸垂）","背中",3,6,10,"1〜2",150,0,BW),
+ E("c_pullup","懸垂（順手）","背中",3,6,10,"1〜2",150,0,BW),E("latpd","ラット・プルダウン","背中",3,8,12,"1〜2",120,2.5),
+ E("divpd","ダイバージング・ラット・プルダウン","背中",3,8,12,"1〜2",120,2.5),E("srow","シーテッド・ロウ","背中",3,10,12,"1〜2",120,2.5),
+ E("c_bbrow","ベントオーバーロウ","背中",3,6,10,"1〜2",150,2.5),E("c_dbrow","ワンハンドダンベルロウ","背中",3,8,12,"1〜2",90,1,{note:"回数は片腕ずつ"}),
+ E("ilrow","インクライン・レバー・ロウ","背中",3,8,12,"1〜2",120,2.5),E("c_tbar","Tバーロウ","背中",3,8,12,"1〜2",120,2.5),
+ E("c_backext","バックエクステンション","背中",3,10,15,"1〜2",90,0,BW),
+ E("ohp","オーバーヘッドプレス","肩",3,5,8,"1〜2",150,2.5),E("c_dbsp","ダンベルショルダープレス","肩",3,8,12,"1〜2",120,1,{note:"片手の重量"}),
+ E("cspress","ショルダープレス（マシン）","肩",3,8,12,"1〜2",120,2.5),E("c_dblr","サイドレイズ（ダンベル）","肩",3,12,20,"0〜1",60,1,{note:"片手の重量"}),
+ E("latraise","ラテラル・レイズ（マシン）","肩",3,12,15,"0〜1",90,2.5),E("cablelr","ケーブルサイドレイズ","肩",3,12,15,"0〜1",90,2.5),
+ E("reardelt","リア・デルト（マシン）","肩",3,12,15,"0〜1",90,2.5),E("c_facepull","フェイスプル","肩",3,12,15,"0〜1",90,2.5),
+ E("c_uprow","アップライトロウ","肩",3,10,12,"1〜2",90,2.5),E("c_shrug","シュラッグ","肩",3,10,15,"1",90,2.5),
+ E("c_bbcurl","バーベルカール","二頭",3,8,12,"0〜1",90,2.5),E("c_dbcurl","アームカール（ダンベル）","二頭",3,8,12,"0〜1",90,1,{note:"片手の重量"}),
+ E("idcurl","インクラインダンベルカール","二頭",3,8,12,"0〜1",90,1,{note:"片手の重量"}),E("c_dbhammer","ハンマーカール（ダンベル）","二頭",3,8,12,"0〜1",90,1,{note:"片手の重量"}),
+ E("hammer","ケーブルハンマーカール","二頭",3,10,12,"0〜1",90,2.5),E("preacher","プリーチャーカール","二頭",3,8,12,"0〜1",90,2.5),
+ E("c_cablecurl","ケーブルカール","二頭",3,10,15,"0〜1",90,2.5),E("c_concurl","コンセントレーションカール","二頭",3,10,12,"0〜1",60,1,{note:"回数は片腕ずつ"}),
+ E("pushdown","ケーブルプレスダウン","三頭",3,10,15,"0〜1",90,2.5),E("ohte","オーバーヘッドトライセプスエクステンション","三頭",3,8,12,"0〜1",90,2.5),
+ E("c_skull","ライイングトライセプスエクステンション","三頭",3,8,12,"0〜1",90,2.5),E("c_cgbench","ナローグリップベンチプレス","三頭",3,6,10,"1〜2",150,2.5),
+ E("c_kickback","キックバック","三頭",3,12,15,"0〜1",60,1,{note:"片手の重量"}),
+ E("squat","バックスクワット","前もも",3,5,8,"1〜2",180,2.5),E("c_frontsq","フロントスクワット","前もも",3,5,8,"1〜2",180,2.5),
+ E("c_legpress","レッグプレス","前もも",3,10,12,"1〜2",120,5),E("alp","アングルド・レッグ・プレス","前もも",3,10,12,"1〜2",120,5),
+ E("c_hacksq","ハックスクワット","前もも",3,8,12,"1〜2",150,5),E("c_goblet","ゴブレットスクワット","前もも",3,10,15,"1〜2",90,2),
+ E("bss","ブルガリアンスクワット","前もも",3,8,12,"1〜2",120,1,{note:"片手の重量。回数は片脚ずつ"}),E("c_lunge","ランジ","前もも",3,10,12,"1〜2",90,1,{note:"片手の重量。回数は片脚ずつ"}),
+ E("legext","レッグ・エクステンション","前もも",3,12,15,"0〜1",90,2.5),
+ E("rdl","ルーマニアンデッドリフト","もも裏",3,8,10,"1〜2",150,2.5),E("plc","ライイングレッグカール","もも裏",3,10,15,"0〜1",90,2.5),
+ E("c_seatedlc","シーテッドレッグカール","もも裏",3,10,15,"0〜1",90,2.5),E("c_goodmorning","グッドモーニング","もも裏",3,8,12,"2",120,2.5),
+ E("c_hipthrust","ヒップスラスト","お尻",3,8,12,"1〜2",120,5),E("c_abduction","ヒップアブダクション（マシン）","お尻",3,12,20,"0〜1",60,2.5),
+ E("c_cablekick","ケーブルキックバック","お尻",3,12,15,"0〜1",60,2.5,{note:"回数は片脚ずつ"}),
+ E("calf","カーフレイズ（レッグプレス）","ふくらはぎ",3,10,15,"0〜1",90,2.5),E("c_standcalf","スタンディングカーフレイズ","ふくらはぎ",3,10,15,"0〜1",60,2.5),
+ E("c_seatcalf","シーテッドカーフレイズ","ふくらはぎ",3,12,20,"0〜1",60,2.5),
+ E("abmachine","アブドミナル（マシン）","腹",3,10,15,"1",90,2.5),E("vcrunch","Vクランチ","腹",3,10,15,"1",90,0,BW),
+ E("c_crunch","クランチ","腹",3,15,20,"1",60,0,BW),E("c_hangleg","ハンギングレッグレイズ","腹",3,8,15,"1",90,0,BW),
+ E("c_abroller","アブローラー","腹",3,8,12,"1〜2",90,0,BW),E("c_cablecrunch","ケーブルクランチ","腹",3,10,15,"1",60,2.5),
+ E("c_plank","プランク","腹",3,30,60,"",60,0,Object.assign({},BW,{note:"回数の欄に秒数を入れます"})),
+ E("c_run","ランニング（トレッドミル）","有酸素",1,20,30,"",0,0,CARDIO({note:"強度の欄には速度（km/h）などを入れます"})),
+ E("c_walk","傾斜ウォーキング","有酸素",1,20,40,"",0,0,CARDIO({note:"強度の欄には傾斜と速度を入れます（例 10% 5km/h）"})),
+ E("c_bike","エアロバイク","有酸素",1,20,40,"",0,0,CARDIO({note:"強度の欄には負荷レベルを入れます"})),
+ E("c_elliptical","クロストレーナー","有酸素",1,20,30,"",0,0,CARDIO()),E("c_stair","ステアクライマー","有酸素",1,10,20,"",0,0,CARDIO()),
+ E("c_rowerg","ローイングマシン","有酸素",1,10,20,"",0,0,CARDIO()),E("c_outrun","ランニング（屋外）","有酸素",1,20,40,"",0,0,CARDIO()),
+ E("c_swim","水泳","有酸素",1,20,40,"",0,0,CARDIO()),E("c_jumprope","縄跳び","有酸素",1,5,15,"",0,0,CARDIO())
+];
+
 const RIRS=["","0","1","2","3","4+"];
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -324,6 +375,7 @@ function loadSession(){
   if(!d){st.session=null;return}
   st.session={date:st.date,dayKey:st.dayKey,title:d.title,exercises:(d.exercises||[]).map(e=>{
     const s=suggest(e,lastRecord(e.id));
+    if(e.cardio)return{id:e.id,name:e.name,muscle:e.muscle||"有酸素",cardio:true,sets:Array.from({length:num(e.sets)||1},()=>({w:"",r:"",lv:"",done:false}))};
     return{id:e.id,name:e.name,muscle:e.muscle||"",sets:Array.from({length:num(e.sets)||3},()=>({w:s.w===null?"":s.w,r:"",rir:"",done:false}))}})};
 }
 function scheduleSave(now){
@@ -391,8 +443,27 @@ function openModel(id,from){location.href="model.html?app=1#"+encodeURIComponent
   modelSheet.hidden=false;document.body.style.overflow="hidden";modelSheet.querySelector("#msclose").focus()}
 function closeModel(){if(!modelSheet)return;modelSheet.hidden=true;document.body.style.overflow="";if(modelReturn&&document.body.contains(modelReturn))modelReturn.focus()}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&modelSheet&&!modelSheet.hidden)closeModel()});
+function cardioCard(ex,i,def){
+  const last=lastRecord(ex.id);const complete=ex.sets.length&&ex.sets.every(s=>s.done);
+  const goal=String(def.repMin)===String(def.repMax)?def.repMin:def.repMin+"–"+def.repMax;
+  let h='<section class="card'+(complete?" complete":"")+'"><div class="exhead"><p class="exname">'+esc(ex.name)+'</p><span class="target">'+esc(goal||"–")+'分</span></div>';
+  h+='<div class="meta" id="meta-'+i+'">'+(last?'<span>前回 '+md(last.date)+'（'+agoLabel(daysBetween(last.date,st.date))+'）： '+last.sets.map(setTxt).join(" / ")+'</span>':'<span>はじめての記録です</span>')+'</div>';
+  if(def.note)h+='<div class="note">'+esc(def.note)+'</div>';
+  h+='<div class="lbl"><span></span><span>分</span><span>km</span><span>強度</span><span></span></div><div class="sets">';
+  ex.sets.forEach((s,j)=>{
+    h+='<div class="setrow'+(s.done?" done":"")+'"><span class="n">'+(j+1)+'</span>'+
+    '<input id="r-'+i+'-'+j+'" type="number" inputmode="decimal" step="1" min="0" data-ex="'+i+'" data-s="'+j+'" data-f="r" value="'+esc(s.r)+'" placeholder="'+esc(def.repMax??"")+'" aria-label="時間（分）">'+
+    '<input id="w-'+i+'-'+j+'" type="number" inputmode="decimal" step="0.1" min="0" data-ex="'+i+'" data-s="'+j+'" data-f="w" value="'+esc(s.w)+'" placeholder="任意" aria-label="距離（km）">'+
+    '<input id="l-'+i+'-'+j+'" type="text" data-ex="'+i+'" data-s="'+j+'" data-f="lv" value="'+esc(s.lv??"")+'" placeholder="任意" aria-label="強度">'+
+    '<button class="chk" data-act="done" data-ex="'+i+'" data-s="'+j+'" aria-label="完了">✓</button></div>'});
+  h+='</div><div class="minor"><button class="ghost" data-act="add" data-ex="'+i+'">行を追加</button>'+(ex.sets.length>1?'<button class="ghost" data-act="del" data-ex="'+i+'">最後の行を削除</button>':"")+'</div></section>';
+  return h}
+/* one set as text: "60kg×8 @1" or, for cardio, "30分 5km 速度10" */
+function setTxt(x){if(x&&x.lv!==undefined)return[num(x.r)?x.r+"分":"",num(x.w)?fmtW(x.w)+"km":"",x.lv?esc(x.lv):""].filter(Boolean).join(" ");
+  return(num(x.w)?fmtW(x.w)+"×":"")+esc(x.r)+(x.rir!==""&&x.rir!=null?"<small>@"+esc(x.rir)+"</small>":"")}
 function exCard(ex,i){
   const def=exDef(ex.id)||{sets:ex.sets.length,repMin:"",repMax:"",rir:"",rest:120};
+  if(def.cardio||ex.cardio)return cardioCard(ex,i,def);
   const last=lastRecord(ex.id);const sg=suggest(def,last);
   const reps=String(def.repMin)===String(def.repMax)?def.repMin:def.repMin+"–"+def.repMax;
   const complete=ex.sets.length&&ex.sets.every(s=>s.done);
@@ -420,20 +491,20 @@ function metaHtml(def,last,sg){
 }
 function refreshMeta(){
   if(st.tab!=="today"||!st.session)return;
-  st.session.exercises.forEach((ex,i)=>{const el=document.getElementById("meta-"+i);if(!el)return;const def=exDef(ex.id);if(!def)return;const last=lastRecord(ex.id);el.innerHTML=metaHtml(def,last,suggest(def,last))});
+  st.session.exercises.forEach((ex,i)=>{const el=document.getElementById("meta-"+i);if(!el)return;const def=exDef(ex.id);if(!def||def.cardio||ex.cardio)return;const last=lastRecord(ex.id);el.innerHTML=metaHtml(def,last,suggest(def,last))});
 }
 function restLabel(s){s=+s||0;return s>=60?(s%60?Math.floor(s/60)+"分"+s%60+"秒":s/60+"分"):s+"秒"}
 
 /* ---------- parts (by muscle) ---------- */
 function exerciseIndex(){
   const m=new Map();
-  routines().forEach(r=>(r.exercises||[]).forEach(e=>{if(!m.has(e.id))m.set(e.id,{id:e.id,name:e.name,muscle:e.muscle||"その他",bw:!!e.bw,sessions:[]})}));
+  routines().forEach(r=>(r.exercises||[]).forEach(e=>{if(!m.has(e.id))m.set(e.id,{id:e.id,name:e.name,muscle:e.muscle||(e.cardio?"有酸素":"その他"),bw:!!e.bw,cardio:!!e.cardio,sessions:[]})}));
   st.workouts.forEach(w=>(w.exercises||[]).forEach(ex=>{
     const sets=(ex.sets||[]).filter(s=>num(s.r)>0);if(!sets.length)return;
-    if(!m.has(ex.id))m.set(ex.id,{id:ex.id,name:ex.name,muscle:ex.muscle||"その他",bw:false,old:true,sessions:[]});
+    if(!m.has(ex.id))m.set(ex.id,{id:ex.id,name:ex.name,muscle:ex.muscle||"その他",bw:false,cardio:!!ex.cardio,old:true,sessions:[]});
     const top=Math.max(...sets.map(s=>num(s.w)??0));
     const topR=Math.max(...sets.filter(s=>(num(s.w)??0)===top).map(s=>num(s.r)||0));
-    m.get(ex.id).sessions.push({date:w.date,sets,top,topR});
+    m.get(ex.id).sessions.push({date:w.date,sets,top,topR,mins:sets.reduce((a,s)=>a+(num(s.r)||0),0)});
   }));
   m.forEach(v=>v.sessions.sort((a,b)=>a.date<b.date?1:-1));
   return m;
@@ -447,7 +518,7 @@ function viewParts(){
   const idx=exerciseIndex();const t=today();
   const groups={};
   idx.forEach(v=>{(groups[v.muscle]=groups[v.muscle]||[]).push(v)});
-  const order=MUSCLES.concat(Object.keys(groups).filter(k=>!MUSCLES.includes(k)));
+  const order=PARTS.concat(Object.keys(groups).filter(k=>!PARTS.includes(k)));
   let h='<p class="sub">部位ごとに、最後に鍛えてから何日経ったかを表示します。種目をタップすると重量の推移とすべての記録が見られます。</p>';
   let any=false;
   order.forEach(mu=>{
@@ -461,7 +532,7 @@ function viewParts(){
       const n=s?daysBetween(s.date,t):null;
       h+='<div class="exrow"><button class="exbtn" data-act="openex" data-id="'+esc(v.id)+'" aria-expanded="'+open+'">'+
         '<span class="nm">'+esc(v.name)+(v.old?'<span class="sub">（ルーティン外）</span>':'')+'</span>'+
-        '<span class="lt">'+(s?'前回 '+md(s.date)+'：'+(v.bw&&!s.top?"自重":fmtW(s.top)+"kg")+'×'+s.topR+'回':'まだ記録がありません')+'</span>'+
+        '<span class="lt">'+(s?'前回 '+md(s.date)+'：'+(v.cardio?s.mins+"分":(v.bw&&!s.top?"自重":fmtW(s.top)+"kg")+'×'+s.topR+'回'):'まだ記録がありません')+'</span>'+
         '<span class="dd">'+(n===null?"–":n)+'<small>'+(n===null?"":"日経過")+'</small></span></button>';
       if(open)h+=exDetail(v);
       h+='</div>';
@@ -474,13 +545,17 @@ function viewParts(){
 function e1rm(w,r){return w>0&&r>0?w*(1+r/30):0}
 function exDetail(v){
   if(!v.sessions.length)return'<div class="exdetail">'+motionLink(v.id)+'<span class="sub" style="display:block">記録するとここに推移が表示されます。</span></div>';
+  if(v.cardio){const tot=v.sessions.reduce((a,s)=>a+s.mins,0);let h='<div class="exdetail"><div class="pr"><span>合計 <b>'+tot+'分</b></span><span>記録 <b>'+v.sessions.length+'</b>回</span></div>';
+    const pts=v.sessions.slice().reverse().map(s=>({date:s.date,v:s.mins}));
+    if(pts.length>=2)h+='<div class="chartbox">'+lineChart(pts,{label:v.name+"の時間の推移",ma:false})+'</div>';
+    return h+'<div class="tablewrap"><table class="log"><tbody>'+v.sessions.map(s=>'<tr><td>'+esc(s.date)+'</td><td>'+s.sets.map(setTxt).join("、")+'</td></tr>').join("")+'</tbody></table></div></div>'}
   let best=0,bestD="",be=0;
   v.sessions.forEach(s=>{if(s.top>best){best=s.top;bestD=s.date}s.sets.forEach(x=>{const e=e1rm(num(x.w)||0,num(x.r)||0);if(e>be)be=e})});
   let h='<div class="exdetail">'+motionLink(v.id)+'<div class="pr"><span>最高重量 <b>'+(best?fmtW(best)+"kg":"–")+'</b>'+(bestD?'（'+md(bestD)+'）':'')+'</span>'+
     (be?'<span>推定1RM <b>'+be.toFixed(1)+'kg</b></span>':'')+'<span>記録 <b>'+v.sessions.length+'</b>回</span></div>';
   const pts=v.sessions.slice().reverse().filter(s=>s.top>0).map(s=>({date:s.date,v:s.top}));
   if(pts.length>=2)h+='<div class="chartbox">'+lineChart(pts,{label:v.name+"の重量の推移",ma:false})+'</div>';
-  h+='<div class="tablewrap"><table class="log"><tbody>'+v.sessions.map(s=>'<tr><td>'+esc(s.date)+'</td><td>'+s.sets.map(x=>(num(x.w)?fmtW(x.w)+"kg×":"")+esc(x.r)+(x.rir!==""&&x.rir!=null?" @"+esc(x.rir):"")).join("、")+'</td></tr>').join("")+'</tbody></table></div></div>';
+  h+='<div class="tablewrap"><table class="log"><tbody>'+v.sessions.map(s=>'<tr><td>'+esc(s.date)+'</td><td>'+s.sets.map(setTxt).join("、")+'</td></tr>').join("")+'</tbody></table></div></div>';
   return h;
 }
 
@@ -554,7 +629,7 @@ function viewHistory(){
     const k="w:"+w.id;const lb=routineLabel(w.dayKey);
     h+='<section class="hist"><div class="row" style="justify-content:space-between"><span class="d">'+esc(w.date)+(lb?'（'+lb+'）':'')+'</span><button class="ghost'+(st.confirm===k?" danger":"")+'" data-act="wdel" data-id="'+esc(w.id)+'">'+(st.confirm===k?"削除する":"削除")+'</button></div><h3>'+esc(w.title||"")+'</h3><ul>';
     (w.exercises||[]).forEach(ex=>{const s=(ex.sets||[]).filter(x=>num(x.r)>0);if(!s.length)return;
-      h+='<li><span>'+esc(ex.name)+'</span><span>'+s.map(x=>(num(x.w)?fmtW(x.w)+"×":"")+esc(x.r)+(x.rir!==""&&x.rir!=null?"<small>@"+esc(x.rir)+"</small>":"")).join(", ")+'</span></li>'});
+      h+='<li><span>'+esc(ex.name)+'</span><span>'+s.map(setTxt).join(", ")+'</span></li>'});
     h+='</ul></section>';
   });
   return h+backupCard();
@@ -586,12 +661,17 @@ function knownExercises(){
   routines().forEach(r=>(r.exercises||[]).forEach(e=>{if(!m.has(e.id))m.set(e.id,e)}));
   return[...m.values()].sort((a,b)=>(MUSCLES.indexOf(a.muscle)-MUSCLES.indexOf(b.muscle))||String(a.name).localeCompare(b.name,"ja"));
 }
+function pickerOptions(known){
+  const ids=new Set(known.map(k=>k.id));let h='';
+  if(known.length)h+='<optgroup label="登録済み（記録がつながります）">'+known.map(k=>'<option value="'+esc(k.id)+'">'+esc(k.muscle?k.muscle+"｜":"")+esc(k.name)+'</option>').join("")+'</optgroup>';
+  PARTS.forEach(p=>{const list=CATALOG.filter(c=>c.muscle===p&&!ids.has(c.id));if(list.length)h+='<optgroup label="'+esc(p)+'">'+list.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join("")+'</optgroup>'});
+  return h}
 function viewRoutine(){
   if(!st.draft)st.draft=st.program?clone(st.program):{days:[]};
   const D=st.draft;D.days=D.days||[];
   let h='';
   h+='<div class="savebar" id="savebar"'+(st.draftDirty?"":" hidden")+'><span class="sub" style="color:var(--ink)">変更がまだ保存されていません</span><div class="row"><button class="ghost" data-act="rcancel">取り消す</button><button class="primary" data-act="rsave"'+(st.progSaving?" disabled":"")+'>保存</button></div></div>';
-  h+='<p class="sub">ルーティンの名前・曜日・種目を編集できます。同じ種目を別の日にも入れるときは「登録済みの種目から追加」を使うと、記録と次回重量の提案がつながります。</p>';
+  h+='<p class="sub">ルーティンの名前・曜日・種目を編集できます。種目は一覧から選んで追加できます（有酸素も入っています）。同じ種目を別の日にも入れるときは「登録済み」から選ぶと、記録と次回重量の提案がつながります。</p>';
   const known=knownExercises();
   D.days.forEach((r,ri)=>{
     const rk="r:"+ri;
@@ -599,7 +679,7 @@ function viewRoutine(){
       '<select id="rw-'+ri+'" data-rt="'+ri+'" data-f="weekday" aria-label="曜日">'+WD.map((w,i)=>'<option value="'+i+'"'+(wdOf(r)===i?" selected":"")+'>'+(i?w+"曜":"曜日なし")+'</option>').join("")+'</select></div>';
     (r.exercises||[]).forEach((e,ei)=>{
       const ek=ri+"-"+ei;const open=st.editEx===ek;const dk="e:"+ek;
-      h+='<div class="edrow"><div class="edtop"><div style="min-width:0"><div class="nm">'+esc(e.name||"（名前なし）")+'</div><div class="sm">'+esc(e.muscle||"部位未設定")+' ・ '+esc(e.sets)+'セット × '+esc(e.repMin)+(String(e.repMin)!==String(e.repMax)?'–'+esc(e.repMax):'')+'回 ・ 休憩'+restLabel(e.rest)+'</div></div>'+
+      h+='<div class="edrow"><div class="edtop"><div style="min-width:0"><div class="nm">'+esc(e.name||"（名前なし）")+'</div><div class="sm">'+esc(e.muscle||"部位未設定")+' ・ '+(e.cardio?esc(e.repMin)+(String(e.repMin)!==String(e.repMax)?'–'+esc(e.repMax):'')+'分':esc(e.sets)+'セット × '+esc(e.repMin)+(String(e.repMin)!==String(e.repMax)?'–'+esc(e.repMax):'')+'回 ・ 休憩'+restLabel(e.rest))+'</div></div>'+
         '<div class="edbtns"><button class="ghost" data-act="emove" data-r="'+ri+'" data-e="'+ei+'" data-d="-1" aria-label="上へ"'+(ei===0?" disabled":"")+'>↑</button>'+
         '<button class="ghost" data-act="emove" data-r="'+ri+'" data-e="'+ei+'" data-d="1" aria-label="下へ"'+(ei===r.exercises.length-1?" disabled":"")+'>↓</button>'+
         '<button class="ghost" data-act="eedit" data-k="'+ek+'">'+(open?"閉じる":"編集")+'</button>'+
@@ -607,7 +687,7 @@ function viewRoutine(){
       if(open)h+=exForm(e,ri,ei);
       h+='</div>';
     });
-    h+='<div class="addline"><select id="addsel-'+ri+'" aria-label="登録済みの種目"><option value="">登録済みの種目から追加…</option>'+known.map(k=>'<option value="'+esc(k.id)+'">'+esc(k.muscle?k.muscle+"｜":"")+esc(k.name)+'</option>').join("")+'</select>'+
+    h+='<div class="addline"><select id="addsel-'+ri+'" aria-label="追加する種目"><option value="">種目を選んで追加…</option>'+pickerOptions(known)+'</select>'+
       '<button class="ghost" data-act="eaddknown" data-r="'+ri+'">追加</button><button class="ghost" data-act="eaddnew" data-r="'+ri+'">新しい種目</button></div>';
     h+='<div class="minor"><button class="ghost" data-act="rmove" data-r="'+ri+'" data-d="-1"'+(ri===0?" disabled":"")+'>ルーティンを上へ</button><button class="ghost" data-act="rmove" data-r="'+ri+'" data-d="1"'+(ri===D.days.length-1?" disabled":"")+'>下へ</button>'+
       '<button class="ghost'+(st.confirm===rk?" danger":"")+'" data-act="rdel" data-r="'+ri+'">'+(st.confirm===rk?"このルーティンを削除する":"ルーティンを削除")+'</button></div></section>';
@@ -618,11 +698,12 @@ function viewRoutine(){
 function exForm(e,ri,ei){
   const f=(field,label,type,extra)=>'<label'+(extra&&extra.wide?' class="wide"':'')+'>'+label+'<input id="ef-'+ri+'-'+ei+'-'+field+'" type="'+type+'" '+(type==="number"?'inputmode="decimal" step="any" ':'')+'data-er="'+ri+'" data-ee="'+ei+'" data-f="'+field+'" value="'+esc(e[field]??"")+'"></label>';
   return'<div class="form">'+f("name","種目名","text",{wide:true})+
-    '<label>部位<select id="ef-'+ri+'-'+ei+'-muscle" data-er="'+ri+'" data-ee="'+ei+'" data-f="muscle"><option value="">未設定</option>'+MUSCLES.map(m=>'<option'+(e.muscle===m?" selected":"")+'>'+m+'</option>').join("")+'</select></label>'+
+    '<label>部位<select id="ef-'+ri+'-'+ei+'-muscle" data-er="'+ri+'" data-ee="'+ei+'" data-f="muscle"><option value="">未設定</option>'+PARTS.map(m=>'<option'+(e.muscle===m?" selected":"")+'>'+m+'</option>').join("")+'</select></label>'+
     f("sets","セット数","number")+f("repMin","回数（下限）","number")+f("repMax","回数（上限）","number")+
     f("rir","目標RIR","text")+f("rest","休憩（秒）","number")+f("start","開始重量（kg）","number")+f("inc","重量の刻み（kg）","number")+
     f("note","メモ","text",{wide:true})+
-    '<label class="chkline wide"><input id="ef-'+ri+'-'+ei+'-bw" type="checkbox" data-er="'+ri+'" data-ee="'+ei+'" data-f="bw"'+(e.bw?" checked":"")+'>自重種目（重量欄を加重として扱う）</label></div>';
+    '<label class="chkline wide"><input id="ef-'+ri+'-'+ei+'-bw" type="checkbox" data-er="'+ri+'" data-ee="'+ei+'" data-f="bw"'+(e.bw?" checked":"")+'>自重種目（重量欄を加重として扱う）</label>'+
+    '<label class="chkline wide"><input id="ef-'+ri+'-'+ei+'-cardio" type="checkbox" data-er="'+ri+'" data-ee="'+ei+'" data-f="cardio"'+(e.cardio?" checked":"")+'>有酸素（時間・距離・強度で記録。回数の欄は目標の分数）</label></div>';
 }
 function markDraft(){st.draftDirty=true;const sb=document.getElementById("savebar");if(sb)sb.hidden=false}
 async function saveProgram(){
@@ -686,7 +767,7 @@ main.addEventListener("input",e=>{
   }
   if(!st.session||el.dataset.ex===undefined)return;
   const s=st.session.exercises[+el.dataset.ex].sets[+el.dataset.s];
-  s[f]=f==="rir"?el.value:(el.value===""?"":(num(el.value)??""));
+  s[f]=(f==="rir"||f==="lv")?el.value:(el.value===""?"":(num(el.value)??""));
   scheduleSave(f==="rir");
 });
 main.addEventListener("change",e=>{
@@ -709,7 +790,7 @@ main.addEventListener("click",async e=>{
     b.closest(".setrow").classList.toggle("done",s.done);
     b.closest(".card").classList.toggle("complete",ex.sets.every(x=>x.done));
     scheduleSave(true);
-    if(s.done)startTimer(num(def.rest)||120,ex.name+"（"+(j+1)+"セット目まで完了）");
+    if(s.done&&!def.cardio&&!ex.cardio)startTimer(num(def.rest)||120,ex.name+"（"+(j+1)+"セット目まで完了）");
     return;}
   case"add":{const ex=st.session.exercises[+b.dataset.ex];const l=ex.sets[ex.sets.length-1]||{w:""};ex.sets.push({w:l.w,r:"",rir:"",done:false});render();return}
   case"del":{const ex=st.session.exercises[+b.dataset.ex];if(ex.sets.length>1){ex.sets.pop();if(st.saved)scheduleSave(true);render()}return}
@@ -735,7 +816,7 @@ main.addEventListener("click",async e=>{
   case"eedit":st.editEx=st.editEx===b.dataset.k?null:b.dataset.k;render();return;
   case"emove":{const r=D.days[+b.dataset.r];const i=+b.dataset.e,j=i+(+b.dataset.d);if(j<0||j>=r.exercises.length)return;[r.exercises[i],r.exercises[j]]=[r.exercises[j],r.exercises[i]];st.editEx=null;st.draftDirty=true;render();return}
   case"edel":{if(!armConfirm("e:"+b.dataset.r+"-"+b.dataset.e))return;D.days[+b.dataset.r].exercises.splice(+b.dataset.e,1);st.editEx=null;st.draftDirty=true;render();return}
-  case"eaddknown":{const ri=+b.dataset.r;const id=$("#addsel-"+ri).value;if(!id)return;const k=knownExercises().find(x=>x.id===id);if(!k)return;const r=D.days[ri];r.exercises=r.exercises||[];r.exercises.push(clone(k));st.draftDirty=true;render();return}
+  case"eaddknown":{const ri=+b.dataset.r;const id=$("#addsel-"+ri).value;if(!id)return;const k=knownExercises().find(x=>x.id===id)||CATALOG.find(x=>x.id===id);if(!k)return;const r=D.days[ri];r.exercises=r.exercises||[];r.exercises.push(clone(k));st.draftDirty=true;render();return}
   case"eaddnew":{const ri=+b.dataset.r;const r=D.days[ri];r.exercises=r.exercises||[];r.exercises.push({id:newId("x"),name:"",muscle:"",sets:3,repMin:8,repMax:12,rir:"1〜2",rest:90,start:null,inc:2.3,note:""});st.editEx=ri+"-"+(r.exercises.length-1);st.draftDirty=true;render();
     setTimeout(()=>{const el=document.getElementById("ef-"+ri+"-"+(r.exercises.length-1)+"-name");if(el)el.focus()},0);return}
   }
