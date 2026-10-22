@@ -382,7 +382,7 @@ const MODEL_IDS=new Set("bench chin ilrow ohp idcurl ohte squat rdl alp plc calf
 function motionLink(id){return MODEL_IDS.has(id)?'<button class="motion" data-act="motion" data-id="'+esc(id)+'">▶ 動きと使う筋肉を見る</button>':""}
 /* the muscle model is published with this notebook (model.html) and opens in a full-screen sheet; it loads only on first use */
 let modelSheet=null,modelReturn=null;
-function openModel(id,from){modelReturn=from||null;
+function openModel(id,from){location.href="model.html?app=1#"+encodeURIComponent(id);return;modelReturn=from||null;
   if(!modelSheet){modelSheet=document.createElement("div");modelSheet.className="modelsheet";modelSheet.setAttribute("role","dialog");modelSheet.setAttribute("aria-modal","true");modelSheet.setAttribute("aria-label","動きと使う筋肉");
     modelSheet.innerHTML='<div class="msbar"><b>動きと使う筋肉</b><button class="ghost" id="msclose">閉じる</button></div><iframe title="筋肉模型" id="msframe"></iframe>';
     document.body.appendChild(modelSheet);modelSheet.querySelector("#msclose").addEventListener("click",closeModel);

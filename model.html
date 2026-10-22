@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>人体筋肉模型 BodyParts3D</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -56,14 +56,17 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .muscles dt{font-weight:700;display:flex;align-items:center;gap:6px}
 .muscles dt i{width:10px;height:10px;border-radius:2px;display:inline-block}
 .muscles dd{margin:0 0 8px 16px;color:var(--muted);font-size:.82rem}
-.embed body{padding-top:10px}
-.embed .wrap>div:first-child{display:none}
+.embed body{padding-top:max(10px,env(safe-area-inset-top,0px))}
+.backlink{display:none;align-self:flex-start;font:inherit;font-weight:700;font-size:.95rem;color:var(--accent);background:none;border:0;padding:6px 0;cursor:pointer;text-decoration:none}
+.inapp .backlink{display:inline-block}
+.embed .wrap>div:first-of-type{display:none}
 .credit{font-size:.75rem;color:var(--muted);border-left:3px solid var(--line);padding:2px 0 2px 10px;margin:0}
 </style>
 
 </head><body>
-<script>try{if(new URLSearchParams(location.search).has("embed"))document.documentElement.classList.add("embed")}catch(e){}</script>
+<script>try{var q=new URLSearchParams(location.search);if(q.has("embed")||q.has("app"))document.documentElement.classList.add("embed");if(q.has("app"))document.documentElement.classList.add("inapp")}catch(e){}</script>
 <div class="wrap">
+  <a class="backlink" href="./" id="backlink">← 手帳に戻る</a>
   <div>
     <h1>人体筋肉模型</h1>
     <span class="sub">解剖学の3Dデータ「BodyParts3D」をもとにした全身の筋肉模型です。種目を選ぶと動きを再生し、使う筋肉を色分けします。ドラッグで回転できます。</span>
@@ -140,7 +143,7 @@ const ang2=v=>Math.atan2(v[2],v[1]);   /* angle in the side plane, from straight
 
 /* ---------- decode the packed meshes ---------- */
 const b64=document.getElementById("data").textContent.trim();
-const bin=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)).buffer;
+const bin=(()=>{const s=atob(b64),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u.buffer})();
 let zMin=1e9,bodyV=0,bodyT=0;
 MAN.forEach(p=>{const v=new Int16Array(bin,p.o,p.nv*3);for(let i=2;i<v.length;i+=3)if(v[i]<zMin)zMin=v[i];const k=p.m?2:1;bodyV+=p.nv*k;bodyT+=p.nf*k});
 const W=(p,s)=>[s*p[0]/1000,(p[2]-zMin/2)/1000,-p[1]/1000];
