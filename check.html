@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3D表示チェック</title>
+<style>
+:root{--bg:#eef1f4;--ink:#151b23;--muted:#5d6876;--line:#d6dce4;--ok:#1f7a3a;--ng:#b3261e}
+@media (prefers-color-scheme:dark){:root{--bg:#0f141a;--ink:#e8edf3;--muted:#95a2b2;--line:#2b3644;--ok:#6fd08c;--ng:#ff8a80}}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,sans-serif;padding:16px;margin:0}
+h1{font-size:1.2rem;margin:0 0 8px}
+p{color:var(--muted);margin:0 0 12px}
+table{border-collapse:collapse;width:100%}
+td{border-top:1px solid var(--line);padding:6px 4px;vertical-align:top;word-break:break-all}
+td:first-child{white-space:nowrap;color:var(--muted);width:9em}
+.ok{color:var(--ok);font-weight:700}.ng{color:var(--ng);font-weight:700}
+canvas{width:120px;height:80px;border:1px solid var(--line);margin-top:12px}
+</style></head><body>
+<h1>3D表示チェック</h1>
+<p>この画面のスクリーンショットを送ってください。</p>
+<table id="t"></table>
+<canvas id="c" width="240" height="160"></canvas>
+<script>
+const rows=[];const add=(k,v,cls)=>rows.push('<tr><td>'+k+'</td><td'+(cls?' class="'+cls+'"':'')+'>'+String(v).replace(/</g,'&lt;')+'</td></tr>');
+add("端末",navigator.userAgent);
+add("画面倍率",window.devicePixelRatio);
+add("アプリ表示",(window.navigator.standalone||matchMedia("(display-mode: standalone)").matches)?"ホーム画面アプリ":"ブラウザ");
+function test(kind,attrs){try{const c=document.createElement("canvas");c.width=64;c.height=64;const g=c.getContext(kind,attrs);
+  if(!g)return["なし","ng"];if(g.isContextLost())return["作れたが失われている","ng"];
+  const sh=g.createShader(g.VERTEX_SHADER);if(!sh)return["シェーダーを作れない","ng"];
+  const dbg=g.getExtension("WEBGL_debug_renderer_info");const r=dbg?g.getParameter(dbg.UNMASKED_RENDERER_WEBGL):g.getParameter(g.RENDERER);
+  const out="使える / "+r+" / VU="+g.getParameter(g.MAX_VERTEX_UNIFORM_VECTORS)+" / tex="+g.getParameter(g.MAX_TEXTURE_SIZE);
+  const ext=g.getExtension("WEBGL_lose_context");if(ext)ext.loseContext();return[out,"ok"]}catch(e){return["エラー: "+e.message,"ng"]}}
+let r=test("webgl2",{antialias:true});add("WebGL2",r[0],r[1]);
+r=test("webgl2",{antialias:false});add("WebGL2(AAなし)",r[0],r[1]);
+r=test("webgl",{antialias:false});add("WebGL1",r[0],r[1]);
+/* draw a triangle on a visible canvas */
+try{const c=document.getElementById("c"),g=c.getContext("webgl");
+  const vs=g.createShader(g.VERTEX_SHADER);g.shaderSource(vs,"attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}");g.compileShader(vs);
+  const fs=g.createShader(g.FRAGMENT_SHADER);g.shaderSource(fs,"precision mediump float;void main(){gl_FragColor=vec4(.2,.5,.9,1.);}");g.compileShader(fs);
+  const pr=g.createProgram();g.attachShader(pr,vs);g.attachShader(pr,fs);g.linkProgram(pr);g.useProgram(pr);
+  const b=g.createBuffer();g.bindBuffer(g.ARRAY_BUFFER,b);g.bufferData(g.ARRAY_BUFFER,new Float32Array([-.8,-.8,.8,-.8,0,.8]),g.STATIC_DRAW);
+  g.enableVertexAttribArray(0);g.vertexAttribPointer(0,2,g.FLOAT,false,0,0);g.clearColor(.9,.9,.9,1);g.clear(g.COLOR_BUFFER_BIT);g.drawArrays(g.TRIANGLES,0,3);
+  add("三角形の描画","下の枠に青い三角形が出ていれば成功",g.isContextLost()?"ng":"ok")}catch(e){add("三角形の描画","エラー: "+e.message,"ng")}
+document.getElementById("t").innerHTML=rows.join("");
+</script>
+</body></html>
