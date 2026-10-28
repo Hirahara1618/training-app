@@ -26,6 +26,9 @@ const days = [
   { key: "a", title: "胸の日", weekday: 1, exercises: [{ id: "bench", name: "ベンチプレス", muscle: "胸", sets: 3, repMin: 5, repMax: 8, rir: "1〜2", rest: 60, start: 60, inc: 2.5, note: "" }] },
   { key: "b", title: "脚の日", weekday: 4, exercises: [{ id: "squat", name: "バックスクワット", muscle: "前もも", sets: 3, repMin: 5, repMax: 8, rir: "1〜2", rest: 60, start: 80, inc: 2.5, note: "" }] },
 ];
+// 今日が月・木でなければ今日の曜日のルーティンを足す（どの曜日・時間帯に流しても今日の進み具合を確かめる）
+const wdToday = today.getDay() === 0 ? 7 : today.getDay();
+if (wdToday !== 1 && wdToday !== 4) days.push({ key: "c", title: "背中の日", weekday: wdToday, exercises: [{ id: "latpd", name: "ラット・プルダウン", muscle: "背中", sets: 3, repMin: 8, repMax: 12, rir: "1〜2", rest: 60, start: 40, inc: 2.5, note: "" }] });
 const workouts = {}, bodyweight = {};
 for (let k = 45; k >= 1; k--) {
   const d = new Date(today); d.setDate(d.getDate() - k);
@@ -41,7 +44,7 @@ for (let k = 45; k >= 1; k--) {
 const DATA = { program: { current: { updatedAt: "", days } }, workouts, bodyweight };
 
 try {
-  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, timezoneId: process.env.TZ || undefined });
   await ctx.addInitScript((d) => { if (!localStorage.getItem("tlog-data-v1")) localStorage.setItem("tlog-data-v1", d); }, JSON.stringify(DATA));
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
@@ -75,19 +78,14 @@ try {
   // 今日：進み具合が✓で増える
   await page.click('#tab-today [data-act="today"]').catch(() => {});
   await page.waitForSelector("#tab-today .set");
-  const sel = await page.$("#progress");
-  if (sel) {
-    const before = await page.textContent("#progress");
-    await page.click('.set[data-s="0"] [data-act=done]');
-    const after = await page.textContent("#progress");
-    assert.notEqual(before, after);
-    assert.match(after, /1 \/ 3 セット完了（33%）/);
-    await page.click('#timer [data-t="stop"]');
-    await page.screenshot({ path: path.join(OUT, "today-progress.png") });
-    ok("今日の進み具合が✓で増える");
-  } else {
-    console.log("  --  今日はルーティンの曜日ではないので進み具合は省略");
-  }
+  const before = await page.textContent("#progress");
+  await page.click('.set[data-s="0"] [data-act=done]');
+  const after = await page.textContent("#progress");
+  assert.notEqual(before, after);
+  assert.match(after, /1 \/ 3 セット完了（33%）/);
+  await page.click('#timer [data-t="stop"]');
+  await page.screenshot({ path: path.join(OUT, "today-progress.png") });
+  ok("今日の進み具合が✓で増える");
 
   // 体重：毎日の値をつないだ折れ線（線の頂点の数＝点の数）
   await page.click('[data-tab="weight"]');
