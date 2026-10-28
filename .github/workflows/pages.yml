@@ -1,4 +1,4 @@
-# main に push したら src/ からビルドして dist/ を GitHub Pages に公開する。
+# main に push したら、テストを通してから src/ をビルドし、dist/ を GitHub Pages に公開する。
 # リポジトリの Settings → Pages → Source を「GitHub Actions」にしておくこと。
 name: Pages
 
@@ -17,7 +17,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 手帳のテストと、模型の検査の自己テスト。通らなければ公開しない
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
+      - run: node tools/check.mjs selftest lo
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -1,5 +1,5 @@
 // 模型の自動検査（CLAUDE.md 8章）：器具へのめり込み・腕と胴体/太ももの重なり・腕の動きの跳ね。
-// 使い方: npm run build && node tools/check.mjs [種目ID,…|all] [hi|lo] [分割数]
+// 使い方: npm run build && node tools/check.mjs [種目ID,…|all] [hi|lo] [分割数] [k/n（全種目を n 個に分けた k 番目）]
 // 既定はスマホ版メッシュ（iPhone で見える形）で 100 分割。1つでも基準を超えたら終了コード 1。
 
 import { chromium } from "playwright-core";
@@ -52,7 +52,10 @@ try {
     server.kill();
     process.exit();
   }
-  const ids = ARG === "all" ? await page.evaluate(() => Object.keys(EXERCISES).filter((k) => !k.startsWith("_"))) : ARG.split(",");
+  let ids = ARG === "all" ? await page.evaluate(() => Object.keys(EXERCISES).filter((k) => !k.startsWith("_"))) : ARG.split(",");
+  // 5番目の引数 "k/n" で分割して流す（GitHub Actions で並列に）
+  const shard = (process.argv[5] || "").match(/^(\d+)\/(\d+)$/);
+  if (shard) ids = ids.filter((_, i) => i % Number(shard[2]) === Number(shard[1]) - 1);
   console.log(`検査: ${ids.length}種目 · ${Q === "lo" ? "スマホ版" : "通常版"}メッシュ · ${N}分割`);
   for (const id of ids) {
     const t0 = Date.now();

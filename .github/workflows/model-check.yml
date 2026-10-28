@@ -1,0 +1,30 @@
+# 模型の全種目の検査（CLAUDE.md 8章）。模型・メッシュ・検査を変えたときと、手動で流す。
+# 時間がかかるので4つに分けて並列に流す（公開は止めない。結果は Actions の画面で見る）
+name: Model check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/model/**"
+      - "src/shared/**"
+      - "data/bodyparts3d/**"
+      - "tools/check.mjs"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1/4", "2/4", "3/4", "4/4"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build
+      - run: node tools/check.mjs all lo 100 ${{ matrix.shard }}
