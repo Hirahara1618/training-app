@@ -20,6 +20,14 @@ const ROLE_COLORS = {
 // 役割のない「その他」のパーツを、どの筋の仲間として色を付けるか
 const TISSUE_ROLE = { FMA11336: "abs", FMA258847: "calves", FMA58776: "glutes" };
 const PERIOD = 3.2; // 1回の動作の秒数（始め→動き→終わり→戻り）
+// 筋肉の役割の日本語名（タップしたときに出す）
+const ROLE_LABELS = {
+  pecs: "大胸筋", lats: "広背筋", delts: "三角筋", traps: "僧帽筋", scap: "菱形筋・肩甲骨まわり", serratus: "前鋸筋",
+  biceps: "上腕二頭筋", triceps: "上腕三頭筋", forearms: "前腕の筋肉", abs: "腹筋（腹直筋・腹斜筋）", erectors: "脊柱起立筋",
+  glutes: "殿筋（お尻）", hipflex: "腸腰筋", quads: "大腿四頭筋（前もも）", hams: "ハムストリング（もも裏）", adductors: "内転筋（内もも）",
+  calves: "ふくらはぎ", shin: "すねの筋肉", neck: "首の筋肉", hand: "手の筋肉", foot: "足の筋肉",
+};
+const HIGHLIGHT_COLOR = [0.98, 0.8, 0.22];
 
 const View = {
   renderer: null, parts: null, rig: null, meta: null, baseFit: null,
@@ -151,12 +159,15 @@ function selectExercise(id) {
     // 解剖模型モード：静止姿勢、全筋肉を赤茶、骨をアイボリー
     cancelAnimationFrame(View.raf);
     r.setPose(bodyDQ({ bones: Object.fromEntries(BODY_BONES.map((b) => [b, { R: M3.I(), t: [0, 0, 0] }])) }), new Float32Array(128).map((_, i) => (i % 16) % 5 === 0 ? 1 : 0), [0, 0], []);
+    View.colorFn = anatomyColor;
     r.setColors(batchColors(View.meta, anatomyColor));
     r.useExerciseParts(false);
     r.setProps(null);
     Object.assign(r.cam, { target: [0, 0.76, 0], dist: 3.6, near: null });
     $("#ex-name").textContent = "全身（解剖模型）";
     $("#legend").hidden = true;
+    $("#tips").hidden = true;
+    closeInfo();
     r.request();
     return;
   }
@@ -176,13 +187,17 @@ function selectExercise(id) {
   View.fit.barTopZ = s0.extra.bar ? s0.extra.bar[2] : null;
   View.state = {};
   buildProps();
-  r.setColors(batchColors(View.meta, roleColor(def)));
+  View.colorFn = roleColor(def);
+  r.setColors(batchColors(View.meta, View.colorFn));
   r.useExerciseParts(true);
   Object.assign(r.cam, { target: def.cam.target.slice(), dist: def.cam.dist, near: null, yaw: def.cam.yaw == null ? VIEWS.oblique : def.cam.yaw });
   const c = CATALOG.byId[id];
   $("#ex-name").textContent = c ? c.name : id;
   $("#legend").hidden = false;
   $("#path").hidden = !def.barPath;
+  $("#tips-btn").hidden = !TIPS[id];
+  closeInfo();
+  if (View.tipsOpen) showTips(); else $("#tips").hidden = true;
   View.t0 = performance.now();
   if (View.playing) loop(); else renderAt(View.t);
 }
@@ -288,6 +303,7 @@ async function main() {
   batches = null; // GPU に送ったので捨てる
   lap("GPU");
   View.renderer = r;
+  setupPicking(r);
   r.onLost(() => { cancelAnimationFrame(View.raf); showFailure("3D表示が止まりました（context lost）", ["端末の負荷が高すぎた可能性があります"]); });
   r.cam.yaw = VIEWS.oblique;
   setStatus("");
@@ -311,6 +327,97 @@ function updateFraming() {
 }
 window.addEventListener("resize", updateFraming);
 if (window.ResizeObserver) new ResizeObserver(updateFraming).observe(document.querySelector(".bottom"));
+
+// ---- 筋肉をタップして種目を探す ----
+function setupPicking(r) {
+  // パーツの番号（1〜）を色に入れる
+  View.parts.forEach((p, i) => { p.pid = i + 1; });
+  r.setPickColors(View.meta.map((b) => {
+    const col = new Uint8Array(b.nv * 3);
+    for (const p of b.parts) {
+      const n = p.pos.length / 3;
+      for (let i = 0; i < n; i++) { col[(p.vStart + i) * 3] = p.pid & 255; col[(p.vStart + i) * 3 + 1] = p.pid >> 8; }
+    }
+    return col;
+  }));
+  r.onTap((x, y) => {
+    const id = r.pick(x, y);
+    const p = id ? View.parts[id - 1] : null;
+    if (!p || p.c !== "m" || !ROLE_LABELS[p.r]) { closeInfo(); return; }
+    showInfo(p.r);
+  });
+}
+
+// その筋肉を主に使う・補助で使う種目
+function exercisesForRole(role) {
+  const main = [], sub = [];
+  for (const c of CATALOG.list) {
+    const d = EXERCISES[c.id];
+    if (!d || c.hidden) continue;
+    if ((d.roles.main || []).includes(role)) main.push(c);
+    else if ((d.roles.sub || []).includes(role)) sub.push(c);
+  }
+  return { main, sub };
+}
+
+function showInfo(role) {
+  View.infoRole = role;
+  const { main, sub } = exercisesForRole(role);
+  const cur = View.ex ? View.ex.id : "";
+  let now = "";
+  if (View.ex) {
+    const k = ["main", "sub", "support"].find((x) => (View.ex.roles[x] || []).includes(role));
+    now = k ? `この種目では「${{ main: "主に使う", sub: "補助", support: "支える" }[k]}」筋肉です` : "この種目ではあまり使いません";
+  }
+  const list = (arr) => arr.length ? `<div class="exs">${arr.map((c) => `<button data-goex="${c.id}" class="${c.id === cur ? "on" : ""}">${esc(c.name)}</button>`).join("")}</div>` : `<p class="hint">なし</p>`;
+  $("#info").innerHTML = `<h2><span>${esc(ROLE_LABELS[role])}</span><button class="close" data-close>閉じる</button></h2>
+    ${now ? `<div class="role-now">${esc(now)}</div>` : ""}
+    <h3>主に使う種目</h3>${list(main)}
+    ${sub.length ? `<h3>補助で使う種目</h3>${list(sub)}` : ""}`;
+  $("#info").hidden = false;
+  View.infoShownAt = performance.now();
+  $("#tips").hidden = true;
+  // タップした筋肉の仲間を光らせる
+  const base = View.colorFn;
+  View.renderer.setColors(batchColors(View.meta, (p) => (p.c === "m" && p.r === role ? HIGHLIGHT_COLOR : base(p))));
+  View.renderer.request();
+}
+
+function closeInfo() {
+  if (!View.infoRole) { $("#info").hidden = true; return; }
+  View.infoRole = null;
+  $("#info").hidden = true;
+  if (View.renderer && View.colorFn) { View.renderer.setColors(batchColors(View.meta, View.colorFn)); View.renderer.request(); }
+}
+
+// ---- フォームのポイント ----
+function showTips() {
+  const tips = View.ex && TIPS[View.ex.id];
+  if (!tips) { $("#tips").hidden = true; return; }
+  const c = CATALOG.byId[View.ex.id];
+  $("#tips").innerHTML = `<h2><span>${esc(c ? c.name : View.ex.id)}のポイント</span><button class="close" data-tips-close>閉じる</button></h2>
+    <ul>${tips.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+    <p class="hint">筋肉をタップすると、その筋肉を使う種目が出ます</p>`;
+  $("#tips").hidden = false;
+}
+$("#tips-btn").addEventListener("click", () => {
+  View.tipsOpen = $("#tips").hidden;
+  $("#tips-btn").classList.toggle("on", View.tipsOpen);
+  if (View.tipsOpen) { closeInfo(); showTips(); } else $("#tips").hidden = true;
+});
+$("#tips").addEventListener("click", (e) => {
+  if (!e.target.closest("[data-tips-close]")) return;
+  View.tipsOpen = false;
+  $("#tips-btn").classList.remove("on");
+  $("#tips").hidden = true;
+});
+$("#info").addEventListener("click", (e) => {
+  // 出した直後のクリックは、パネルを出したタップの続き（合成された click）なので無視する
+  if (performance.now() - (View.infoShownAt || 0) < 400) return;
+  if (e.target.closest("[data-close]")) { closeInfo(); return; }
+  const b = e.target.closest("[data-goex]");
+  if (b) { closeInfo(); location.hash = b.dataset.goex; }
+});
 
 // ---- 操作 ----
 $("#views").addEventListener("click", (e) => {

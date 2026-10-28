@@ -16,6 +16,8 @@
   <span id="ex-name" class="ex-name"></span>
 </header>
 <div id="status">読み込み中…</div>
+<section id="info" class="panel" hidden aria-live="polite"></section>
+<section id="tips" class="panel" hidden></section>
 <footer class="bottom">
   <div class="ex-row">
     <select id="ex" aria-label="種目"></select>
@@ -24,6 +26,7 @@
     <button id="play" aria-label="再生・一時停止">❚❚</button>
     <input id="t" type="range" min="0" max="100" value="0" aria-label="動きの位置">
     <button id="path" title="バーの軌道線">軌道</button>
+    <button id="tips-btn" title="フォームのポイント">ポイント</button>
   </div>
   <div id="legend" class="legend" hidden><span class="k main"></span>主に使う <span class="k sub"></span>補助 <span class="k support"></span>支える</div>
   <div id="views">
@@ -47,6 +50,7 @@
 
 <script>/*__MESH_FILES__*/</script>
 <script src="../shared/catalog.js" data-inline></script>
+<script src="../shared/tips.js" data-inline></script>
 <script src="../app/util.js" data-inline></script>
 <script src="math.js" data-inline></script>
 <script src="mesh.js" data-inline></script>

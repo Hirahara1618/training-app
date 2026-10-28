@@ -108,10 +108,13 @@ void main() {
 const FS = `
 precision mediump float;
 uniform vec3 uEye;
+uniform float uFlat;
 varying vec3 vNrm;
 varying vec3 vCol;
 varying vec3 vPos;
 void main() {
+  // 筋肉を選ぶための描画：色（パーツの番号）を陰影なしでそのまま出す
+  if (uFlat > 0.5) { gl_FragColor = vec4(vCol, 1.0); return; }
   vec3 n = normalize(vNrm);
   vec3 v = normalize(uEye - vPos);
   if (dot(n, v) < 0.0) n = -n;               // 裏面も表として照らす
@@ -179,8 +182,8 @@ function createContext(host) {
     if (!gl) { log.push(`${label}: 取得できず`); continue; }
     if (gl.isContextLost()) { log.push(`${label}: 失われたコンテキスト`); continue; }
     try {
-      const body = buildProgram(gl, VS_BODY, ["aPos", "aNrm", "aCol", "aBone", "aExtra", "aP2", "aN2"], ["uViewProj", "uEye", "uDQ", "uGrip", "uPadC", "uPadS"]);
-      const props = buildProgram(gl, VS_PROPS, ["aPos", "aNrm", "aCol", "aBone"], ["uViewProj", "uEye", "uM"]);
+      const body = buildProgram(gl, VS_BODY, ["aPos", "aNrm", "aCol", "aBone", "aExtra", "aP2", "aN2"], ["uViewProj", "uEye", "uDQ", "uGrip", "uPadC", "uPadS", "uFlat"]);
+      const props = buildProgram(gl, VS_PROPS, ["aPos", "aNrm", "aCol", "aBone"], ["uViewProj", "uEye", "uM", "uFlat"]);
       host.appendChild(canvas);
       log.push(`${label}: OK`);
       return { gl, canvas, body, props, type, log };
@@ -263,12 +266,14 @@ function createRenderer(host, batches) {
     gl.vertexAttribPointer(i, size, type || gl.FLOAT, !!normalized, 0, 0);
   }
 
-  function draw() {
+  // pick=true のときは、パーツの番号の色で、陰影なし・器具なしで描く（筋肉を選ぶため）
+  function draw(pick) {
     queued = false;
     if (lost) return;
     resize();
     gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.11, 0.125, 0.145, 1);
+    if (pick) gl.clearColor(0, 0, 0, 1);
+    else gl.clearColor(0.11, 0.125, 0.145, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
     gl.disable(gl.CULL_FACE);
@@ -292,8 +297,9 @@ function createRenderer(host, batches) {
     gl.uniform2fv(P.uGrip, uni.grip);
     gl.uniform4fv(P.uPadC, uni.padC);
     gl.uniform4fv(P.uPadS, uni.padS);
+    gl.uniform1f(P.uFlat, pick ? 1 : 0);
     for (const b of body) {
-      attrib(0, b.pos, 3); attrib(1, b.nrm, 3); attrib(2, b.col, 3, gl.UNSIGNED_BYTE, true);
+      attrib(0, b.pos, 3); attrib(1, b.nrm, 3); attrib(2, pick ? b.idcol : b.col, 3, gl.UNSIGNED_BYTE, true);
       attrib(3, b.bone, 3); attrib(4, b.extra, 2); attrib(5, b.p2, 3); attrib(6, b.n2, 3);
       const ex = useExerciseIdx && b.idxEx;
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ex ? b.idxEx : b.idx);
@@ -301,9 +307,10 @@ function createRenderer(host, batches) {
     }
     for (let i = 4; i < 7; i++) gl.disableVertexAttribArray(i);
 
-    if (props && props.ni) {
+    if (props && props.ni && !pick) {
       const Q = ctx.props;
       gl.useProgram(Q.p);
+      gl.uniform1f(Q.uFlat, 0);
       gl.uniformMatrix4fv(Q.uViewProj, false, vp);
       gl.uniform3fv(Q.uEye, eye);
       gl.uniformMatrix4fv(Q.uM, false, uni.mats);
@@ -316,7 +323,7 @@ function createRenderer(host, batches) {
   function request() {
     if (queued) return;
     queued = true;
-    requestAnimationFrame(draw);
+    requestAnimationFrame(() => draw(false));
   }
 
   // ドラッグで回す、ピンチ・ホイールで拡大
@@ -339,6 +346,20 @@ function createRenderer(host, batches) {
     }
     request();
   });
+  // タップ（ほとんど動かさずに短く触れて離す）を見分ける。ドラッグやピンチはタップにしない
+  const tap = { x: 0, y: 0, t: 0, moved: 0, multi: false };
+  const tapListeners = [];
+  canvas.addEventListener("pointerdown", (e) => {
+    if (e.isPrimary) Object.assign(tap, { x: e.clientX, y: e.clientY, t: performance.now(), moved: 0, multi: false });
+    else tap.multi = true;
+  });
+  canvas.addEventListener("pointermove", (e) => { if (e.isPrimary) tap.moved = Math.max(tap.moved, Math.hypot(e.clientX - tap.x, e.clientY - tap.y)); });
+  // 指を離したあとにブラウザが合成する click を出させない（タップで出したパネルのボタンが、その click で押されてしまう）
+  canvas.addEventListener("touchend", (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+  canvas.addEventListener("pointerup", (e) => {
+    if (!e.isPrimary || tap.multi || tap.moved > 8 || performance.now() - tap.t > 400) return;
+    tapListeners.forEach((f) => f(e.clientX, e.clientY));
+  });
   const up = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch0 = 0; };
   canvas.addEventListener("pointerup", up);
   canvas.addEventListener("pointercancel", up);
@@ -354,6 +375,27 @@ function createRenderer(host, batches) {
       cols.forEach((c, i) => { gl.bindBuffer(gl.ARRAY_BUFFER, body[i].col); gl.bufferSubData(gl.ARRAY_BUFFER, 0, c); });
     },
     useExerciseParts(on) { useExerciseIdx = on; },
+    onTap(f) { tapListeners.push(f); },
+    // 筋肉を選ぶための色（まとまりごとの Uint8Array。パーツの番号を RGB に入れたもの）
+    setPickColors(cols) {
+      cols.forEach((c, i) => {
+        if (!body[i].idcol) body[i].idcol = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, body[i].idcol);
+        gl.bufferData(gl.ARRAY_BUFFER, c, gl.STATIC_DRAW);
+      });
+    },
+    // 画面上の点（clientX, clientY）にあるパーツの番号（なければ 0）
+    pick(cx, cy) {
+      if (lost || !body[0].idcol) return 0;
+      const rect = canvas.getBoundingClientRect();
+      const px = Math.round((cx - rect.left) * canvas.width / rect.width);
+      const py = Math.round(canvas.height - (cy - rect.top) * canvas.height / rect.height);
+      draw(true);
+      const out = new Uint8Array(4);
+      gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
+      draw(false);
+      return out[0] + out[1] * 256;
+    },
     setProps(m) {
       if (props) for (const k of ["pos", "nrm", "col", "bone", "idx"]) gl.deleteBuffer(props[k]);
       props = m && m.ni ? { pos: buf(m.pos), nrm: buf(m.nrm), col: buf(m.col), bone: buf(m.bone), idx: buf(m.idx, gl.ELEMENT_ARRAY_BUFFER), ni: m.ni } : null;

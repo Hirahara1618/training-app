@@ -49,6 +49,24 @@ body:not(.app-mode) .ex-name::before { content: "· "; }
 #t { flex: 1; min-width: 0; accent-color: var(--accent); }
 #play { width: 44px; justify-content: center; }
 #path.off { opacity: 0.45; }
+/* 筋肉の説明・フォームのポイント（画面の上に重ねる） */
+.panel {
+  position: fixed; z-index: 3; left: calc(12px + env(safe-area-inset-left)); right: calc(12px + env(safe-area-inset-right));
+  top: calc(56px + env(safe-area-inset-top)); max-height: 30vh; overflow-y: auto;
+  background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); font-size: 14px;
+}
+.panel h2 { font-size: 16px; margin: 0 0 4px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.panel h3 { font-size: 12px; color: var(--muted); margin: 8px 0 4px; font-weight: 600; }
+.panel .close { min-height: 30px; padding: 2px 10px; font-size: 13px; }
+.panel .role-now { font-size: 12px; color: var(--muted); }
+.panel .exs { display: flex; flex-wrap: wrap; gap: 6px; }
+.panel .exs button { min-height: 28px; padding: 2px 8px; font-size: 12px; }
+.panel .exs button.on { border-color: var(--accent); color: var(--accent); }
+.panel ul { margin: 4px 0 0; padding-left: 1.2em; }
+.panel li { margin: 3px 0; }
+.panel .hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+#tips-btn.on { border-color: var(--accent); color: var(--accent); }
 .legend { display: flex; gap: 6px; align-items: center; font-size: 12px; color: #ece8e1; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
 .legend .k { width: 12px; height: 12px; border-radius: 3px; display: inline-block; margin-left: 6px; }
 .legend .k:first-child { margin-left: 0; }

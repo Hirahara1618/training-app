@@ -95,10 +95,13 @@ function renderExerciseDetail(root, workouts, id) {
     }));
     h += `<h3 class="sub">${allZero ? "最多回数の推移" : "重量の推移（その日の最大kg）"}</h3>
       ${dateChart({ from: first, to: lastD, points: pts, line: pts, label: "推移" })}`;
+    // 推定1RM（その日の最大）の推移
+    const rm = hist.map((x) => ({ date: x.date, y: x.sets.reduce((m, s) => { const v = setE1rm(s); return v != null && (m == null || v > m) ? v : m; }, null) })).filter((p) => p.y != null);
+    if (rm.length) h += `<h3 class="sub">推定1RMの推移（kg）</h3>${dateChart({ from: first, to: lastD, points: rm, line: rm, label: "推定1RMの推移" })}`;
   }
-  h += `<h3 class="sub">全記録</h3><ul class="records">`;
-  for (const x of hist.slice().reverse()) {
-    h += `<li><span class="r-date">${esc(fmtDateY(x.date))}</span><span>${x.sets.map((s) =>
+  h += `<h3 class="sub">全記録 <small>★ は自己ベストを更新した日</small></h3><ul class="records">`;
+  for (const x of (cardio ? hist : markPBs(hist)).slice().reverse()) {
+    h += `<li${x.pb ? ' class="pb"' : ""}><span class="r-date">${x.pb ? "★ " : ""}${esc(fmtDateY(x.date))}</span><span>${x.sets.map((s) =>
       esc(fmtSet(s, def)) + (s.rir !== "" && s.rir != null && !cardio ? `<small> RIR${esc(s.rir)}</small>` : "")).join("　")}</span></li>`;
   }
   root.innerHTML = h + `</ul>`;

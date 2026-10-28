@@ -19,6 +19,8 @@ function renderHistory(root) {
       <a href="#backup" data-jump="backup">書き出す ↓</a></div>`;
   }
 
+  h += deloadNotice(workouts, today, false);
+
   // 今週の部位別セット数
   const vol = weekVolume(workouts, today);
   const max = Math.max(20, ...Object.values(vol));
@@ -35,6 +37,20 @@ function renderHistory(root) {
       <span class="vol-n">${n}</span></div>`;
   }
   h += `</div></section>`;
+
+  // 週ごとの部位別セット数の推移（直近8週）
+  const weeks = weeklyVolumes(workouts, today, 8);
+  h += `<section class="card"><h3 class="sub">部位別セット数の推移 <small>直近8週・緑は目安 ${WEEK_TARGET[0]}〜${WEEK_TARGET[1]} の範囲</small></h3>
+    <div class="trend"><table><colgroup><col class="m">${weeks.map(() => "<col>").join("")}</colgroup><thead><tr><th></th>${weeks.map((w, k) => `<th>${k === weeks.length - 1 ? "今週" : esc(fmtMD(w.start))}</th>`).join("")}</tr></thead><tbody>`;
+  for (const m of MUSCLES) {
+    if (m === "有酸素") continue;
+    h += `<tr><th>${esc(m)}</th>${weeks.map((w, k) => {
+      const n = w.vol[m] || 0;
+      const cls = n === 0 ? "z" : n >= WEEK_TARGET[0] && n <= WEEK_TARGET[1] ? "in" : n > WEEK_TARGET[1] ? "over" : "";
+      return `<td class="${cls}${k === weeks.length - 1 ? " now" : ""}">${n || "·"}</td>`;
+    }).join("")}</tr>`;
+  }
+  h += `</tbody></table></div></section>`;
 
   // 直近40回
   h += `<h3 class="sub">直近の記録</h3>`;

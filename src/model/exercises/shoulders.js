@@ -144,7 +144,7 @@ defineExercise({
       cables: (sk, out) => { const p = [0.32, 0.12, 0.2]; return [[p, toward(out.extra.gripR, p, 0.05)]]; },
     };
   },
-  props: (fit) => [...floorMat(), ...cableTower([0.32, 0.12, 0.2], 1), ...cableItems(1), ...dHandles(fit.rig, ["R"])],
+  props: (fit) => [...floorMat(), ...cableTower([0.32, 0.12, 0.2]), ...cableItems(1), ...dHandles(fit.rig, ["R"])],
 });
 
 // リア・デルト（マシン）：ペックフライと同じマシンに逆向きに座る（マシン本体は体の前）

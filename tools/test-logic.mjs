@@ -106,6 +106,43 @@ test("ルーティンの曜日：weekday、なければキー名", () => {
   assert.equal(T.routineWeekday({ key: "zzz" }), 0);
   assert.equal(T.routineWeekday({ key: "mon", weekday: "0" }), 0);
 });
+test("自己ベスト：最高重量・推定1RM・自重の回数", () => {
+  const ws = T.sortedWorkouts({ a: W("2026-10-01", "bench", [{ w: 60, r: 8 }, { w: 62.5, r: 5 }]) });
+  const best = T.bestBefore(ws, "bench", "2026-10-08");
+  assert.equal(best.w, 62.5);
+  assert.equal(T.setPB({ w: 65, r: 3 }, best, bench), "weight");
+  assert.equal(T.setPB({ w: 60, r: 10 }, best, bench), "e1rm");
+  assert.equal(T.setPB({ w: 60, r: 8 }, best, bench), null);
+  assert.equal(T.setPB({ w: 65, r: 3 }, null, bench), null, "初めての種目には付けない");
+  const chin = T.CATALOG.byId.chin;
+  const bwBest = T.bestBefore(T.sortedWorkouts({ a: W("2026-10-01", "chin", [{ w: "", r: 8 }]) }), "chin", "2026-10-08");
+  assert.equal(T.setPB({ w: "", r: 9 }, bwBest, chin), "reps");
+  const marked = T.markPBs([{ date: "1", sets: [{ w: 60, r: 8 }] }, { date: "2", sets: [{ w: 60, r: 8 }] }, { date: "3", sets: [{ w: 62.5, r: 6 }] }]);
+  assert.deepEqual(marked.map((x) => x.pb), [false, false, true]);
+});
+test("週ごとのセット数：8週、古い順", () => {
+  const ws = T.sortedWorkouts({ a: W("2026-10-26", "bench", [{ w: 60, r: 8 }, { w: 60, r: 8 }]), b: W("2026-10-12", "bench", [{ w: 60, r: 8 }]) });
+  const v = T.weeklyVolumes(ws, "2026-10-28", 8);
+  assert.equal(v.length, 8);
+  assert.equal(v[7].start, "2026-10-26"); assert.equal(v[7].vol["胸"], 2);
+  assert.equal(v[5].start, "2026-10-12"); assert.equal(v[5].vol["胸"], 1);
+});
+test("デロード：伸び悩み＋追い込み続きなら提案、順調なら提案しない", () => {
+  const make = (grow, rir) => {
+    const col = {};
+    for (let k = 0; k < 18; k++) {
+      const d = T.addDays("2026-09-21", k * 2 + (k % 3));
+      const w = 60 + (grow ? k * 1 : (k < 9 ? k * 0.5 : 4));
+      for (const id of ["bench", "squat", "c_dbrow"]) col[`${d}_${id}`] = W(d, id, [{ w, r: 6, rir }, { w, r: 6, rir }], "胸");
+    }
+    return T.sortedWorkouts(col);
+  };
+  const bad = T.deloadAdvice(make(false, "0"), "2026-10-28");
+  assert.equal(bad.suggest, true); assert.ok(bad.reasons.length >= 2, bad.reasons.join(" / "));
+  const good = T.deloadAdvice(make(true, "2"), "2026-10-28");
+  assert.equal(good.suggest, false, good.reasons.join(" / "));
+  assert.equal(T.deloadAdvice([], "2026-10-28").suggest, false);
+});
 test("Epley", () => { assert.ok(Math.abs(T.epley(100, 3) - 110) < 1e-9); });
 
 console.log(`${n} 件すべて通過`);

@@ -128,9 +128,10 @@ function renderToday(root) {
   } else if (!Today.wk) {
     h += `<div class="empty"><p>${esc(fmtDate(date))}のルーティンはありません。<br>上で選ぶと記録できます。</p></div>`;
   } else {
+    const workouts = sortedWorkouts(db.get(db.collection("workouts")));
+    if (date === todayYmd()) h += deloadNotice(workouts, date, true);
     h += `<div class="wk-title"><h2>${esc(Today.wk.title || "（無題）")}</h2><span id="save-status" class="status"></span></div>`;
     if (!Today.wk.exercises.length) h += `<div class="empty"><p>このルーティンには種目がありません。</p><button data-go="routine">種目を追加する</button></div>`;
-    const workouts = sortedWorkouts(db.get(db.collection("workouts")));
     Today.wk.exercises.forEach((x, i) => { h += exerciseCard(x, i, workouts); });
   }
   root.innerHTML = h;
@@ -141,10 +142,12 @@ function exerciseCard(x, i, workouts) {
   const d = x.def;
   const prev = lastRecord(workouts, d.id, Today.date);
   const sg = suggest(d, prev);
+  x.best = d.cardio ? null : bestBefore(workouts, d.id, Today.date);
+  const anyPB = x.sets.some((s) => setPB(s, x.best, d));
   const unit = d.unit || (d.cardio ? "分" : "回");
   const reps = num(d.repMin) === num(d.repMax) ? `${d.repMax}` : `${d.repMin}–${d.repMax}`;
   let h = `<section class="card ex${d.cardio ? " cardio" : ""}" data-i="${i}">
-    <header><h3>${esc(d.name)}</h3><span class="chip">${esc(d.muscle)}</span></header>`;
+    <header><h3>${esc(d.name)}</h3><span class="pb-chip" ${anyPB ? "" : "hidden"}>★ 自己ベスト</span><span class="chip">${esc(d.muscle)}</span></header>`;
   if (x.removed) h += `<div class="meta warn">ルーティンにない種目（この日の記録）</div>`;
   if (d.cardio) {
     h += `<div class="target">目標 <b>${reps}${unit}</b></div>`;
@@ -168,7 +171,7 @@ function exerciseCard(x, i, workouts) {
   } else {
     h += `<div class="set head"><span>#</span><span>${d.bw ? "加重kg" : "kg"}</span><span>${unit}</span><span>RIR</span><span></span></div>`;
   }
-  x.sets.forEach((s, j) => { h += setRow(d, s, j, sg); });
+  x.sets.forEach((s, j) => { h += setRow(d, s, j, sg, x.best); });
   h += `</div><div class="card-actions">
     <button class="small" data-act="addset">＋セット</button>
     ${x.sets.length > 1 ? `<button class="small" data-act="delset">−セット</button>` : ""}
@@ -177,7 +180,7 @@ function exerciseCard(x, i, workouts) {
   return h;
 }
 
-function setRow(d, s, j, sg) {
+function setRow(d, s, j, sg, best) {
   if (d.cardio) {
     return `<div class="set cardio" data-s="${j}"><span class="no">${j + 1}</span>
       <input inputmode="decimal" data-f="r" value="${esc(s.r)}" placeholder="${esc(d.repMax)}" aria-label="分">
@@ -186,12 +189,38 @@ function setRow(d, s, j, sg) {
     </div>`;
   }
   const wPh = sg && sg.w != null ? fmtNum(sg.w) : (d.bw ? "0" : "kg");
-  return `<div class="set${s.done ? " done" : ""}" data-s="${j}"><span class="no">${j + 1}</span>
+  const pb = setPB(s, best, d);
+  return `<div class="set${s.done ? " done" : ""}${pb ? " pb" : ""}" data-s="${j}" title="${pb ? "自己ベスト" : ""}"><span class="no">${pb ? "★" : j + 1}</span>
     <input inputmode="decimal" data-f="w" value="${esc(s.w)}" placeholder="${esc(wPh)}" aria-label="重量">
     <input inputmode="numeric" data-f="r" value="${esc(s.r)}" placeholder="${esc(d.repMax)}" aria-label="回数">
     <select data-f="rir" aria-label="RIR">${RIR_OPTIONS.map((o) => `<option value="${o}" ${String(s.rir == null ? "" : s.rir) === o ? "selected" : ""}>${o === "" ? "–" : o}</option>`).join("")}</select>
     <button class="check" data-act="done" aria-pressed="${s.done ? "true" : "false"}" aria-label="完了">✓</button>
   </div>`;
+}
+
+// 入力に合わせて、自己ベストの印を付け直す（描き直さずに）
+function refreshPB(card, x) {
+  if (x.def.cardio) return;
+  let any = false;
+  x.sets.forEach((s, j) => {
+    const row = card.querySelector(`[data-s="${j}"]`);
+    if (!row) return;
+    const pb = !!setPB(s, x.best, x.def);
+    any = any || pb;
+    row.classList.toggle("pb", pb);
+    row.querySelector(".no").textContent = pb ? "★" : String(j + 1);
+  });
+  const chip = card.querySelector(".pb-chip");
+  if (chip) chip.hidden = !any;
+}
+
+// デロード（軽い週）の提案。compact は今日タブ用（短く）
+function deloadNotice(workouts, date, compact) {
+  const a = deloadAdvice(workouts, date);
+  if (!a.suggest) return "";
+  const tip = "目安：1週間、重量を1〜2割落とすか、セット数を半分にする";
+  if (compact) return `<div class="notice deload"><b>デロード（軽い週）を検討しましょう</b><br><span>${esc(a.reasons[0])}</span> <a href="#" data-go="history">詳しく</a></div>`;
+  return `<div class="notice deload"><b>デロード（軽い週）を検討しましょう</b><ul>${a.reasons.map((r) => `<li>${esc(r)}</li>`).join("")}</ul><span>${tip}</span></div>`;
 }
 
 function changed() {
@@ -209,6 +238,7 @@ function bindToday(root) {
     const j = Number(e.target.closest("[data-s]").dataset.s);
     const v = e.target.value;
     Today.wk.exercises[i].sets[j][f] = (f === "w" || f === "r") ? (num(v) == null ? "" : num(v)) : v;
+    if (f === "w" || f === "r") refreshPB(e.target.closest("[data-i]"), Today.wk.exercises[i]);
     changed();
   });
 
@@ -245,6 +275,7 @@ function bindToday(root) {
       if (s.done && num(s.r) == null && num(x.def.repMin) != null) {
         s.r = num(x.def.repMin);
         $('[data-f="r"]', row).value = s.r;
+        refreshPB(card, x);
       }
       row.classList.toggle("done", s.done);
       b.setAttribute("aria-pressed", s.done ? "true" : "false");

@@ -22,6 +22,7 @@ function daysBetween(a, b) { return Math.round((parseYmd(b) - parseYmd(a)) / DAY
 // 1=月 … 7=日
 function weekdayOf(s) { const g = parseYmd(s).getDay(); return g === 0 ? 7 : g; }
 function fmtDate(s) { const d = parseYmd(s); return `${d.getMonth() + 1}/${d.getDate()}（${WD_NAMES[weekdayOf(s)]}）`; }
+function fmtMD(s) { const d = parseYmd(s); return `${d.getMonth() + 1}/${d.getDate()}`; }
 function fmtDateY(s) { const d = parseYmd(s); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; }
 function fmtAgo(days) {
   if (days <= 0) return "今日";

@@ -144,11 +144,12 @@ function weekVolume(workouts, date) {
 
 // ---- 体重 ----
 
-// bodyweight コレクションを古い順の [{date, kg}]
-function bwEntries(col) {
+// bodyweight コレクションを古い順の [{date, kg}]。field で体脂肪率（fat）・ウエスト（waist）も同じ形で取り出せる
+function bwEntries(col, field) {
+  const f = field || "kg";
   return Object.values(col || {})
-    .filter((e) => e && typeof e.date === "string" && num(e.kg) != null)
-    .map((e) => ({ date: e.date, kg: num(e.kg) }))
+    .filter((e) => e && typeof e.date === "string" && num(e[f]) != null)
+    .map((e) => ({ date: e.date, kg: num(e[f]) }))
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
 
@@ -186,4 +187,133 @@ function bwSeries(entries, rangeKey, today) {
   const line = pts.map((e) => ({ date: e.date, kg: avg7(entries, e.date) }));
   const change = line.length >= 2 ? line[line.length - 1].kg - line[0].kg : null;
   return { from, to: today, points: pts, line, change };
+}
+
+// ---- 自己ベスト ----
+
+// 1セットの推定1RM（重量がなければ null）
+function setE1rm(s) {
+  const w = num(s.w), r = num(s.r);
+  return w != null && w > 0 && r != null && r > 0 ? epley(w, r) : null;
+}
+
+// beforeDate より前の記録での自己ベスト { w, e1rm, reps }（記録がなければ null）
+function bestBefore(workouts, exId, beforeDate) {
+  let best = null;
+  for (const w of workouts) {
+    if (w.date >= beforeDate) continue;
+    for (const e of w.exercises || []) {
+      if (e.id !== exId || e.cardio) continue;
+      for (const s of e.sets || []) {
+        const r = num(s.r);
+        if (r == null || r <= 0) continue;
+        best = best || { w: null, e1rm: null, reps: 0 };
+        const wt = num(s.w);
+        if (wt != null && (best.w == null || wt > best.w)) best.w = wt;
+        const e1 = setE1rm(s);
+        if (e1 != null && (best.e1rm == null || e1 > best.e1rm)) best.e1rm = e1;
+        if (r > best.reps) best.reps = r;
+      }
+    }
+  }
+  return best;
+}
+
+// セットが自己ベストか："weight"（最高重量）, "e1rm"（推定1RM）, "reps"（自重の回数）, null
+function setPB(s, best, def) {
+  if (!best || def.cardio) return null;
+  const r = num(s.r), w = num(s.w);
+  if (r == null || r <= 0) return null;
+  if (w != null && w > 0) {
+    if (best.w != null && w > best.w + 1e-9) return "weight";
+    const e1 = setE1rm(s);
+    if (e1 != null && best.e1rm != null && e1 > best.e1rm + 1e-9) return "e1rm";
+    return null;
+  }
+  // 重量なし：自重の種目だけ、回数で比べる（加重の記録がない場合）
+  if (def.bw && best.w == null && r > best.reps) return "reps";
+  return null;
+}
+
+// 種目の記録（古い順）に、その日に自己ベストを更新したかの印を付ける
+function markPBs(hist) {
+  let bw = null, be = null, br = 0;
+  return hist.map((x, k) => {
+    let pb = false;
+    for (const s of x.sets) {
+      const r = num(s.r), w = num(s.w), e1 = setE1rm(s);
+      if (r == null || r <= 0) continue;
+      if (k > 0 && ((w != null && bw != null && w > bw) || (e1 != null && be != null && e1 > be) || (w == null && bw == null && r > br))) pb = true;
+    }
+    for (const s of x.sets) {
+      const r = num(s.r), w = num(s.w), e1 = setE1rm(s);
+      if (r == null || r <= 0) continue;
+      if (w != null && (bw == null || w > bw)) bw = w;
+      if (e1 != null && (be == null || e1 > be)) be = e1;
+      if (r > br) br = r;
+    }
+    return Object.assign({}, x, { pb });
+  });
+}
+
+// ---- 週ごとの部位別セット数 ----
+
+// 直近 n 週（今週を含む、古い順）の [{start, vol: {部位: セット数}}]
+function weeklyVolumes(workouts, today, n) {
+  const out = [];
+  const ws = weekStart(today);
+  for (let k = n - 1; k >= 0; k--) {
+    const start = addDays(ws, -7 * k);
+    out.push({ start, vol: weekVolume(workouts, start) });
+  }
+  return out;
+}
+
+// ---- デロード（軽い週）の提案 ----
+
+// 直近6週の記録から、休養週を勧めるかと理由を返す { suggest, reasons: [] }
+function deloadAdvice(workouts, today) {
+  const reasons = [];
+  const from6 = addDays(weekStart(today), -35), mid = addDays(weekStart(today), -14);
+  // 1. 伸び悩み：直近6週に4回以上ある種目で、後半3週の最高推定1RMが前半3週を超えていない
+  const per = {};
+  for (const w of workouts) {
+    if (w.date < from6 || w.date > today) continue;
+    for (const e of w.exercises || []) {
+      if (e.cardio) continue;
+      let top = null;
+      for (const s of e.sets || []) { const v = setE1rm(s); if (v != null && (top == null || v > top)) top = v; }
+      if (top == null) continue;
+      const p = (per[e.id] = per[e.id] || { name: e.name, n: 0, early: null, late: null });
+      p.n++;
+      const k = w.date < mid ? "early" : "late";
+      if (p[k] == null || top > p[k]) p[k] = top;
+    }
+  }
+  const tracked = Object.values(per).filter((p) => p.n >= 4 && p.early != null && p.late != null);
+  const stalled = tracked.filter((p) => p.late <= p.early * 1.005);
+  const stall = tracked.length >= 2 && stalled.length / tracked.length >= 0.5;
+  if (stall) reasons.push(`主な種目の推定1RMが3週伸びていない（${stalled.map((p) => p.name).slice(0, 3).join("・")}${stalled.length > 3 ? " ほか" : ""}）`);
+  // 2. 疲労：直近2週の RIR の平均が 0.5 以下（記録が6セット以上）
+  const rirs = [];
+  for (const w of workouts) {
+    if (w.date < mid || w.date > today) continue;
+    for (const e of w.exercises || []) for (const s of e.sets || []) {
+      if (e.cardio || s.rir === "" || s.rir == null) continue;
+      rirs.push(String(s.rir) === "4+" ? 4 : num(s.rir));
+    }
+  }
+  const avgRir = rirs.length >= 6 ? rirs.reduce((a, b) => a + b, 0) / rirs.length : null;
+  const tired = avgRir != null && avgRir <= 0.5;
+  if (tired) reasons.push(`直近2週の RIR の平均が ${avgRir.toFixed(1)}（限界近くまで追い込み続けている）`);
+  // 3. 連続：軽い週（セット数が平均の半分未満）なしで6週以上続いている
+  const weeks = weeklyVolumes(workouts, today, 8).map((x) => Object.values(x.vol).reduce((a, b) => a + b, 0));
+  const done = weeks.slice(0, -1); // 今週は途中なので除く
+  const avg = done.filter((v) => v > 0).reduce((a, b) => a + b, 0) / Math.max(1, done.filter((v) => v > 0).length);
+  let streak = 0;
+  for (let k = done.length - 1; k >= 0 && done[k] >= avg * 0.5 && done[k] > 0; k--) streak++;
+  const long = streak >= 6;
+  if (long) reasons.push(`軽い週なしで ${streak}週続けて練習している`);
+  const suggest = (stall && stalled.length >= 3) || [stall, tired, long].filter(Boolean).length >= 2;
+  return { suggest, reasons };
 }

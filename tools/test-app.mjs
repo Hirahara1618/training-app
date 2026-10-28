@@ -307,6 +307,65 @@ try {
   await legacy.ctx.close();
   ok("手帳 → 模型（種目が選ばれた状態）→ 手帳に戻る、入力は保たれる");
 
+  // ---- 11. 自己ベスト・推移の表・デロード・体組成
+  {
+    const fx = await newPage();
+    const fp = fx.page;
+    // 6週間、ベンチ・スクワット・ロウが伸び悩み、RIR 0 が続いたデータ
+    const today = new Date(); const ymdOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const wd = today.getDay() === 0 ? 7 : today.getDay();
+    const workouts = {};
+    for (let k = 1; k <= 18; k++) {
+      const d = new Date(today); d.setDate(d.getDate() - k * 2);
+      const date = ymdOf(d);
+      workouts[`${date}_day`] = { date, dayKey: "day", title: "テスト", exercises: ["bench", "squat", "c_dbrow"].map((id) => ({ id, name: id === "bench" ? "ベンチプレス" : id, muscle: "胸", sets: [{ w: 60, r: 6, rir: "0", done: true }, { w: 60, r: 6, rir: "0", done: true }] })) };
+    }
+    const seed = { program: { current: { days: [{ key: "day", title: "テスト", weekday: wd, exercises: [{ id: "bench", name: "ベンチプレス", muscle: "胸", sets: 2, repMin: 5, repMax: 8, rir: "1〜2", rest: 0, inc: 2.5, start: null, note: "" }] }] } }, workouts, bodyweight: {} };
+    await fx.ctx.addInitScript((s) => { if (!sessionStorage.getItem("x")) { localStorage.setItem("tlog-data-v1", s); sessionStorage.setItem("x", 1); } }, JSON.stringify(seed));
+    await fp.goto(URL);
+    await fp.waitForSelector("#tab-today .card.ex");
+    const t = await fp.evaluate(() => todayYmd());
+    assert.match(await fp.textContent("#tab-today .notice.deload"), /デロード/, "今日タブにデロードの提案");
+    const card = fp.locator('.card.ex:has(h3:text-is("ベンチプレス"))');
+    assert.equal(await card.locator(".pb-chip").isVisible(), false);
+    await card.locator('[data-s="0"] [data-f=w]').fill("62.5");
+    await card.locator('[data-s="0"] [data-f=r]').fill("6");
+    assert.equal(await card.locator('[data-s="0"]').getAttribute("class"), "set pb", "重量更新で★");
+    assert.equal(await card.locator(".pb-chip").isVisible(), true);
+    await card.locator('[data-s="0"] [data-f=w]').fill("60");
+    assert.equal(await card.locator(".pb-chip").isVisible(), false, "同じ重量に戻すと消える");
+    await card.locator('[data-s="0"] [data-f=w]').fill("62.5");
+    await fp.waitForFunction(() => document.querySelector("#save-status").textContent === "保存済み");
+    await fp.screenshot({ path: path.join(OUT, "pb-today.png"), fullPage: true });
+    await fp.click('[data-tab="history"]');
+    assert.match(await fp.textContent("#tab-history .notice.deload"), /推定1RMが3週伸びていない[\s\S]*RIR/);
+    assert.equal(await fp.locator(".trend tbody tr").count(), 10, "推移の表：10部位");
+    assert.equal(await fp.locator(".trend thead th").count(), 9, "推移の表：8週");
+    await fp.screenshot({ path: path.join(OUT, "history-trend.png"), fullPage: true });
+    await noHScroll(fp, "履歴（推移の表）");
+    await fp.click('[data-tab="muscles"]');
+    await fp.click("[data-muscle='胸']");
+    await fp.click("[data-ex=bench]");
+    assert.match(await fp.textContent("#tab-muscles"), /推定1RMの推移/);
+    assert.equal(await fp.locator("#tab-muscles .records li.pb").count(), 1, "自己ベストの日に★（今日の62.5kg）");
+    await fp.click('[data-tab="weight"]');
+    await fp.fill("#bw-kg", "70.4"); await fp.fill("#bw-fat", "15.2"); await fp.fill("#bw-waist", "79");
+    await fp.click("#bw-form button[type=submit]");
+    await fp.waitForSelector("#tab-weight [data-comp]");
+    const rec = (await data(fp)).bodyweight[t];
+    assert.deepEqual([rec.kg, rec.fat, rec.waist], [70.4, 15.2, 79]);
+    assert.match(await fp.textContent("#tab-weight"), /体脂肪率\s*15\.2/);
+    await fp.click('[data-comp="waist"]');
+    assert.equal(await fp.evaluate(() => localStorage.getItem("tlog-ui-bwcomp")), '"waist"');
+    // 体重だけ消して体脂肪率だけ残す
+    await fp.fill("#bw-kg", ""); await fp.click("#bw-form button[type=submit]");
+    await fp.waitForFunction((d) => JSON.parse(localStorage.getItem("tlog-data-v1")).bodyweight[d].kg === undefined, t);
+    await fp.screenshot({ path: path.join(OUT, "weight-comp.png"), fullPage: true });
+    await noHScroll(fp, "体重（体組成）");
+    await fx.ctx.close();
+    ok("自己ベストの★・推定1RMの推移・部位別セット数の推移・デロードの提案・体組成の記録");
+  }
+
   assert.deepEqual(errors, [], "ページのエラー");
   ok("ページのエラーなし");
   console.log(`すべて通過。画面写真: ${OUT}`);

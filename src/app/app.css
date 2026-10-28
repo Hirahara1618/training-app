@@ -15,6 +15,10 @@
   --band: rgba(60, 138, 58, 0.18);
   --chart-pt: #9aa0a6;
   --chart-ln: #c8463a;
+  --pb: #b07a00;
+  --pb-bg: #fbf0d0;
+  --info: #2b5aa8;
+  --info-bg: #e3ecfa;
   --font: "IBM Plex Sans JP", system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
   --font-num: "Barlow Condensed", "IBM Plex Sans JP", system-ui, sans-serif;
   --radius: 12px;
@@ -39,6 +43,10 @@
     --band: rgba(124, 194, 122, 0.2);
     --chart-pt: #6b7178;
     --chart-ln: #e0645a;
+    --pb: #f0c24b;
+    --pb-bg: #3a3218;
+    --info: #8db4f0;
+    --info-bg: #1d2a3d;
     color-scheme: dark;
   }
 }
@@ -242,7 +250,7 @@ h3.sub small { font-weight: 400; color: var(--muted); font-size: 12px; margin-le
 .change b { font-family: var(--font-num); font-size: 18px; }
 
 /* ---- 体重 ---- */
-.bw-form { display: grid; grid-template-columns: 1.25fr 1fr auto; gap: 8px; align-items: end; }
+.bw-form { display: grid; gap: 8px; align-items: end; }
 .bw-form label { font-size: 12px; color: var(--muted); display: grid; gap: 2px; }
 .bw-form input { color: var(--text); }
 .bw-form #bw-kg { font-family: var(--font-num); font-size: 19px; }
@@ -288,3 +296,40 @@ h3.sub small { font-weight: 400; color: var(--muted); font-size: 12px; margin-le
 .check-l { display: flex !important; align-items: center; gap: 6px; font-size: 15px !important; color: var(--text) !important; }
 .check-l input { width: 20px; height: 20px; }
 .add-ex { margin-top: 4px; color: var(--accent); }
+
+/* ---- 自己ベスト ---- */
+.pb-chip { font-size: 12px; font-weight: 600; color: var(--pb); background: var(--pb-bg); border-radius: 999px; padding: 1px 8px; white-space: nowrap; margin-left: auto; }
+.ex header .pb-chip + .chip { margin-left: 4px; }
+.set.pb .no { color: var(--pb); font-weight: 700; }
+.set.pb { box-shadow: inset 3px 0 0 var(--pb); }
+.records li.pb .r-date { color: var(--pb); font-weight: 600; }
+
+/* ---- デロードの提案 ---- */
+.notice.deload { background: var(--info-bg); color: var(--info); }
+.notice.deload ul { margin: 6px 0; padding-left: 1.2em; }
+.notice.deload a { color: inherit; font-weight: 600; }
+
+/* ---- 部位別セット数の推移（表） ---- */
+.trend { overflow-x: auto; }
+.trend table { border-collapse: separate; border-spacing: 2px; width: 100%; font-size: 12px; table-layout: fixed; }
+.trend col.m { width: 4.6em; }
+.trend th { font-weight: 400; color: var(--muted); white-space: nowrap; padding: 2px 4px; }
+.trend thead th { font-size: 9.5px; padding: 2px 0; letter-spacing: -0.03em; }
+.trend tbody th { text-align: left; color: var(--text); }
+.trend td { text-align: center; font-family: var(--font-num); font-size: 15px; background: var(--surface2); border-radius: 4px; padding: 3px 0; min-width: 0; }
+.trend td.z { color: var(--muted); opacity: 0.6; }
+.trend td.in { background: var(--good-bg); color: var(--good); font-weight: 700; }
+.trend td.over { background: var(--warn-bg); color: var(--warn); font-weight: 700; }
+.trend td.now { outline: 1px dashed var(--line); }
+
+/* ---- 体重・体組成 ---- */
+.bw-form { grid-template-columns: 1fr 1fr; }
+.bw-form .span2 { grid-column: 1 / -1; }
+.bw-form #bw-fat, .bw-form #bw-waist { font-family: var(--font-num); font-size: 19px; }
+.bw-form .msg { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--accent); min-height: 0; }
+.bw-form .msg:empty { display: none; }
+.comp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px; }
+.comp-head h3.sub { margin: 4px 0; }
+.seg.mini { margin: 0; flex: 0 0 auto; }
+.seg.mini button { flex: 0 0 auto; }
+.chart-card h3.sub { margin: 4px 6px; }

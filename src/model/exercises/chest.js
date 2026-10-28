@@ -232,7 +232,7 @@ defineExercise({
       cables: (sk, out) => ["R", "L"].map((s, k) => { const p = [(k ? 1 : -1) * XOVER[0], XOVER[1], XOVER[2]]; return [p, toward(out.extra[`grip${s}`], p, 0.05)]; }),
     };
   },
-  props: (fit) => [...floorMat(), ...cableTower([-XOVER[0], XOVER[1], XOVER[2]], -1), ...cableTower([XOVER[0], XOVER[1], XOVER[2]], 1), ...cableItems(2), ...dHandles(fit.rig)],
+  props: (fit) => [...floorMat(), ...cableTower([-XOVER[0], XOVER[1], XOVER[2]]), ...cableTower([XOVER[0], XOVER[1], XOVER[2]]), ...cableItems(2), ...dHandles(fit.rig)],
 });
 
 // ディップス：平行棒で体を上下（下で少し前傾、膝を曲げる）
