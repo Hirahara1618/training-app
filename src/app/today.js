@@ -149,7 +149,7 @@ function exerciseCard(x, i, workouts) {
   if (d.cardio) {
     h += `<div class="target">目標 <b>${reps}${unit}</b></div>`;
   } else {
-    const w = sg ? fmtLoad(sg.w, d.bw) : "重量未定";
+    const w = sg && sg.w != null ? fmtLoad(sg.w, d.bw) : "重量未定";
     h += `<div class="target">目標 <b>${esc(w)}</b> × ${reps}${unit} × ${d.sets}セット</div>`;
     const meta = [];
     if (d.rir !== "" && d.rir != null) meta.push(`RIR ${esc(d.rir)}`);
@@ -185,7 +185,7 @@ function setRow(d, s, j, sg) {
       <input data-f="lv" value="${esc(s.lv)}" placeholder="傾斜・負荷など" aria-label="強度">
     </div>`;
   }
-  const wPh = sg ? fmtNum(sg.w) : (d.bw ? "0" : "kg");
+  const wPh = sg && sg.w != null ? fmtNum(sg.w) : (d.bw ? "0" : "kg");
   return `<div class="set${s.done ? " done" : ""}" data-s="${j}"><span class="no">${j + 1}</span>
     <input inputmode="decimal" data-f="w" value="${esc(s.w)}" placeholder="${esc(wPh)}" aria-label="重量">
     <input inputmode="numeric" data-f="r" value="${esc(s.r)}" placeholder="${esc(d.repMax)}" aria-label="回数">

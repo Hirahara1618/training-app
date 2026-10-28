@@ -39,6 +39,11 @@ function suggest(def, prev) {
     if (def.bw) return { w: 0, up: false, reason: "自重から" };
     return null;
   }
+  // 自重でない種目で、前回どのセットにも重量が入っていなければ、重量は提案しない（開始重量があればそれ）
+  if (!def.bw && sets.every((s) => num(s.w) == null)) {
+    const start = num(def.start);
+    return start != null ? { w: start, up: false, reason: "前回は重量の記録なし（開始重量）" } : { w: null, up: false, reason: "前回は重量の記録なし" };
+  }
   const maxW = Math.max(...sets.map((s) => num(s.w) || 0));
   const reached = sets.filter((s) => (num(s.w) || 0) === maxW && num(s.r) >= num(def.repMax)).length;
   const need = num(def.sets) || 1;

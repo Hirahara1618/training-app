@@ -74,8 +74,11 @@ function renderExerciseDetail(root, workouts, id) {
     // 最高重量（同じ重量なら回数の多いもの）と推定1RM
     let best = null, bestRm = null;
     for (const x of hist) for (const s of x.sets) {
-      const w = num(s.w) || 0, r = num(s.r);
+      const r = num(s.r);
       if (r == null || r <= 0) continue;
+      // 自重でない種目で重量が入っていないセットは、最高重量に数えない
+      if (!def.bw && num(s.w) == null) continue;
+      const w = num(s.w) || 0;
       if (!best || w > best.w || (w === best.w && r > best.r)) best = { w, r, date: x.date };
       const rm = epley(w, r);
       if (w > 0 && (!bestRm || rm > bestRm.v)) bestRm = { v: rm, w, r, date: x.date };

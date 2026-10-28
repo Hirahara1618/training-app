@@ -17,3 +17,4 @@ IMG_*.png
 # 実データのバックアップ（確認用。リポジトリに入れない）
 training-log-*.json
 /data/private/
+training-backup-*.json

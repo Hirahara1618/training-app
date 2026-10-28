@@ -92,6 +92,20 @@ test("体重：7日平均・4週間前との差・期間の変化", () => {
   assert.ok(Math.abs(s.line[0].kg - T.avg7(e, "2026-10-24")) < 1e-9);
   assert.ok(Math.abs(s.change - -0.6) < 1e-9);
 });
+test("提案：前回に重量の記録がなければ重量を提案しない", () => {
+  const s = T.suggest(bench, { sets: [{ w: "", r: 5, done: true }, { w: "", r: 5, done: true }] });
+  assert.equal(s.w, null); assert.match(s.reason, /重量の記録なし/);
+  assert.equal(T.suggest({ ...bench, start: 40 }, { sets: [{ w: "", r: 5 }] }).w, 40);
+});
+test("数値の読み取り：現行版と同じく parseFloat", () => {
+  assert.equal(T.num("60kg"), 60); assert.equal(T.num(""), null); assert.equal(T.num("abc"), null); assert.equal(T.num(2.5), 2.5);
+});
+test("ルーティンの曜日：weekday、なければキー名", () => {
+  assert.equal(T.routineWeekday({ key: "x", weekday: 3 }), 3);
+  assert.equal(T.routineWeekday({ key: "thu" }), 4);
+  assert.equal(T.routineWeekday({ key: "zzz" }), 0);
+  assert.equal(T.routineWeekday({ key: "mon", weekday: "0" }), 0);
+});
 test("Epley", () => { assert.ok(Math.abs(T.epley(100, 3) - 110) < 1e-9); });
 
 console.log(`${n} 件すべて通過`);
