@@ -29,10 +29,11 @@ function fmtAgo(days) {
   return `${days}日前`;
 }
 
-// 入力値を数値に。空・不正は null
+// 入力値を数値に。空・不正は null。
+// 現行版と同じく parseFloat で読む（以前の記録に "60kg" のような文字列が入っていても読めるように）
 function num(v) {
   if (v === "" || v == null) return null;
-  const n = Number(v);
+  const n = typeof v === "number" ? v : parseFloat(v);
   return Number.isFinite(n) ? n : null;
 }
 function round2(n) { return Math.round(n * 100) / 100; }
@@ -49,6 +50,13 @@ function debounce(fn, ms) {
   f.flush = () => { if (t) { clearTimeout(t); run(); } };
   f.pending = () => t !== null;
   return f;
+}
+
+// Service Worker を登録し、開くたびに更新を確かめる。
+// 同じ URL で登録済みだと register() は何もしないので、update() を呼ばないと新しい版への入れ替えがブラウザ任せになる
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("sw.js").then((r) => r.update()).catch(() => {});
 }
 
 // 画面の設定（期間の選択など）。記録とは別のキーに置く

@@ -12,7 +12,7 @@ function renderHistory(root) {
   let h = `<h2 class="tab-title">履歴</h2>`;
 
   // バックアップの促し
-  const lastExport = uiGet("lastexport", null);
+  const lastExport = lastExportAt();
   const since = lastExport ? daysBetween(lastExport.slice(0, 10), today) : null;
   if (workouts.length && (since == null || since >= BACKUP_REMIND_DAYS)) {
     h += `<div class="notice">${since == null ? "まだバックアップを書き出していません。" : `最後の書き出しから${since}日たちました。`}
@@ -87,13 +87,24 @@ async function exportBackup() {
   return true;
 }
 
-// 読み込んだファイルを確かめて data を返す。だめなら Error
+// 最後に書き出した日時。現行版は tlog-lastbackup に入れていたので、なければそちらを見る
+function lastExportAt() {
+  const v = uiGet("lastexport", null);
+  if (v) return v;
+  try { return localStorage.getItem("tlog-lastbackup"); } catch (e) { return null; }
+}
+
+// 読み込んだファイルを確かめて data を返す。だめなら Error。
+// 現行版と同じく、{app, format, data} で包まれていないデータ（program/workouts/bodyweight を直接持つ）も受け付ける
 function parseBackup(text) {
   let o;
   try { o = JSON.parse(text); } catch (e) { throw new Error("JSON として読めません"); }
-  if (!o || o.app !== BACKUP_APP) throw new Error("このアプリのバックアップではありません");
-  if (o.format !== BACKUP_FORMAT) throw new Error(`対応していない形式です（format ${o.format}）`);
-  return normalizeData(o.data);
+  if (!o || typeof o !== "object") throw new Error("このアプリのバックアップではありません");
+  if (o.app != null && o.app !== BACKUP_APP) throw new Error("このアプリのバックアップではありません");
+  if (o.format != null && o.format !== BACKUP_FORMAT) throw new Error(`対応していない形式です（format ${o.format}）`);
+  const d = o.data && typeof o.data === "object" ? o.data : o;
+  if (!(d.program || d.workouts || d.bodyweight)) throw new Error("記録が入っていません");
+  return normalizeData({ program: d.program || {}, workouts: d.workouts || {}, bodyweight: d.bodyweight || {} });
 }
 
 function bindHistory(root) {

@@ -29,7 +29,7 @@ function pickDayKey(date) {
   const ws = workoutsOn(date);
   if (ws.length) return ws[0].dayKey;
   const wd = weekdayOf(date);
-  const r = programDays().find((d) => Number(d.weekday) === wd);
+  const r = programDays().find((d) => routineWeekday(d) === wd);
   return r ? r.key : null;
 }
 
@@ -105,7 +105,7 @@ function renderToday(root) {
   Today.wk = dayKey ? buildWorkout(date, dayKey) : null;
 
   // 選べるルーティン：現行のもの＋その日の記録にだけあるもの
-  const opts = days.map((d) => ({ key: d.key, title: d.title || "（無題）", wd: Number(d.weekday) }));
+  const opts = days.map((d) => ({ key: d.key, title: d.title || "（無題）", wd: routineWeekday(d) }));
   for (const w of workoutsOn(date)) {
     if (!opts.some((o) => o.key === w.dayKey)) opts.push({ key: w.dayKey, title: `${w.title || "（無題）"}（削除済み）`, wd: 0 });
   }

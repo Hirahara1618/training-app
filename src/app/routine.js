@@ -66,7 +66,7 @@ function renderRoutine(root) {
     h += `<section class="card routine" data-r="${ri}">
       <div class="r-head">
         <input class="r-title" data-rf="title" value="${esc(day.title)}" placeholder="ルーティン名" aria-label="ルーティン名">
-        <select data-rf="weekday" aria-label="曜日">${WD_NAMES.map((n, i) => `<option value="${i}" ${Number(day.weekday) === i ? "selected" : ""}>${i ? n + "曜" : "曜日なし"}</option>`).join("")}</select>
+        <select data-rf="weekday" aria-label="曜日">${WD_NAMES.map((n, i) => `<option value="${i}" ${routineWeekday(day) === i ? "selected" : ""}>${i ? n + "曜" : "曜日なし"}</option>`).join("")}</select>
       </div>
       <div class="r-tools">
         <button class="small" data-act="dayup" ${ri === 0 ? "disabled" : ""} aria-label="上へ">↑</button>

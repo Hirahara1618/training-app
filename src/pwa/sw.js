@@ -24,10 +24,16 @@ self.addEventListener("install", (e) => {
 const MESH_CACHE = "tlog-mesh";
 const MESH_FILES = __MESH_FILES__;
 
+// 古い版のキャッシュを消す。有効化のときに加えて、ページを開くたびにも行う
+// （入れ替わりの直前に古い Service Worker が書き込み中だと、消したあとに古いキャッシュが作り直されることがある）
+async function removeOldCaches() {
+  const keys = await caches.keys();
+  await Promise.all(keys.filter((k) => k.startsWith("tlog-") && k !== CACHE && k !== MESH_CACHE).map((k) => caches.delete(k)));
+}
+
 self.addEventListener("activate", (e) => {
   e.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.filter((k) => k.startsWith("tlog-") && k !== CACHE && k !== MESH_CACHE).map((k) => caches.delete(k)));
+    await removeOldCaches();
     // 今の版で使わないメッシュを消す
     const mesh = await caches.open(MESH_CACHE);
     for (const req of await mesh.keys()) {
@@ -73,5 +79,6 @@ self.addEventListener("fetch", (e) => {
   const fonts = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
   if (!sameOrigin && !fonts) return;
   if (sameOrigin && url.pathname.endsWith(".bin")) { e.respondWith(cacheFirst(req, MESH_CACHE)); return; }
+  if (sameOrigin && req.mode === "navigate") e.waitUntil(removeOldCaches());
   e.respondWith(sameOrigin && isHtml(req) ? networkFirst(req) : cacheFirst(req));
 });

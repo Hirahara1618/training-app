@@ -231,6 +231,82 @@ try {
   await keep.ctx.close();
   ok("既存のデータ・読めないデータを上書きしない");
 
+  // ---- 9. 現行版（1ファイル版）の形のデータがそのまま読めるか
+  // weekday のないルーティン（キー名で曜日を決める）、文字列の数値、有酸素、体重、現行版のキーの書き出し日
+  const todayStr = await page.evaluate(() => todayYmd());
+  const wdKey = await page.evaluate(() => ["", "mon", "tue", "wed", "thu", "fri", "sat", "sun"][weekdayOf(todayYmd())]);
+  const prev = await page.evaluate(() => addDays(todayYmd(), -7));
+  const old = {
+    program: { current: { updatedAt: "2026-10-01", days: [
+      { key: wdKey, title: "旧・今日の曜日", exercises: [
+        { id: "bench", name: "ベンチプレス", muscle: "胸", sets: "3", repMin: "5", repMax: "8", rir: "1〜2", rest: "180", start: null, inc: "2.5", note: "旧メモ" },
+        { id: "c_run", name: "ランニング（トレッドミル）", muscle: "有酸素", cardio: true, sets: 1, repMin: 20, repMax: 30, rir: "", rest: 0, inc: 0 },
+      ] },
+      { key: "zzz", title: "旧・曜日なし", exercises: [] },
+    ] } },
+    workouts: {
+      [`${prev}_${wdKey}`]: { date: prev, dayKey: wdKey, title: "旧・今日の曜日", updatedAt: "2026-10-21T10:00:00.000Z", exercises: [
+        { id: "bench", name: "ベンチプレス", muscle: "胸", sets: [{ w: "60", r: "8", rir: "1", done: true }, { w: "60", r: "8", rir: "", done: true }, { w: "60", r: "8", rir: "2", done: false }] },
+        { id: "c_run", name: "ランニング（トレッドミル）", muscle: "有酸素", cardio: true, sets: [{ w: "5", r: "30", lv: "傾斜2", done: false }] },
+      ] },
+    },
+    bodyweight: { [prev]: { date: prev, kg: 70.2, savedAt: "2026-10-21T07:00:00.000Z" } },
+  };
+  const legacy = await newPage();
+  await legacy.ctx.addInitScript(([s, lb]) => {
+    if (!sessionStorage.getItem("seeded")) { localStorage.setItem("tlog-data-v1", s); localStorage.setItem("tlog-lastbackup", lb); sessionStorage.setItem("seeded", "1"); }
+  }, [JSON.stringify(old), new Date(Date.now() - 3 * 86400000).toISOString()]);
+  const lp = legacy.page;
+  await lp.goto(URL);
+  await lp.waitForSelector("#tab-today .card.ex");
+  assert.match(await lp.textContent("#tab-today .wk-title"), /旧・今日の曜日/, "キー名から曜日を決めて今日のルーティンを出す");
+  const lb = lp.locator('.card.ex:has(h3:text-is("ベンチプレス"))');
+  assert.match(await lb.locator(".prev").textContent(), /7日前.*60×8.*60×8.*60×8/);
+  assert.match(await lb.locator(".sugg").textContent(), /\+2\.5kg/, "全セット上限 → 増量の提案（文字列の数値でも）");
+  assert.match(await lb.locator(".target").textContent(), /62\.5kg/);
+  assert.match(await lb.textContent(), /旧メモ/);
+  await lp.click('[data-tab="history"]');
+  assert.equal(await lp.locator(".notice").count(), 0, "現行版の書き出し日（3日前）を引き継ぐ");
+  assert.match(await lp.textContent(".card.hist"), /60×8/);
+  await lp.click('[data-tab="muscles"]');
+  await lp.click("[data-muscle='有酸素']");
+  await lp.click("[data-ex=c_run]");
+  assert.match(await lp.textContent("#tab-muscles .tiles"), /合計時間\s*30/);
+  await lp.click('[data-tab="weight"]');
+  assert.match(await lp.textContent("#tab-weight .tiles"), /70\.2/);
+  await lp.click('[data-tab="routine"]');
+  assert.equal(await lp.locator('.routine[data-r="0"] [data-rf="weekday"]').inputValue(), String(await lp.evaluate(() => weekdayOf(todayYmd()))));
+  assert.deepEqual(await data(lp), old, "開いて見て回っただけでは書き換えない");
+  // 現行版の書き出しファイル（包まれた形・包まれていない形）を読み込める
+  for (const [name, body] of [["wrapped", { app: "saijo-training-log", format: 1, exportedAt: "2026-10-20T00:00:00Z", data: old }], ["raw", old]]) {
+    const f = path.join(OUT, `legacy-${name}.json`);
+    fs.writeFileSync(f, JSON.stringify(body));
+    await lp.evaluate(() => localStorage.setItem("tlog-data-v1", JSON.stringify({ program: {}, workouts: {}, bodyweight: {} })));
+    await lp.click('[data-tab="history"]');
+    await lp.setInputFiles("#import-file", f);
+    await lp.waitForFunction(() => Object.keys(JSON.parse(localStorage.getItem("tlog-data-v1")).workouts).length === 1);
+    assert.deepEqual(await data(lp), old, `現行版の書き出し（${name}）を読み込める`);
+  }
+  ok("現行版の形のデータ（曜日はキー名、文字列の数値、書き出し日）をそのまま読める・書き換えない");
+
+  // ---- 10. 手帳 → 模型 → 手帳に戻る（日付と入力を保つ）
+  await lp.click('[data-tab="today"]');
+  await lp.click("[data-act=prev]");
+  await lp.click("[data-act=next]");
+  const lb2 = lp.locator('.card.ex:has(h3:text-is("ベンチプレス"))');
+  await lb2.locator('[data-s="0"] [data-f=w]').fill("62.5");
+  await lb2.locator(".model-link").click();
+  await lp.waitForURL(/model\.html\?app=1#bench/);
+  await lp.waitForFunction(() => window.__ready, null, { timeout: 60000 });
+  assert.equal(await lp.textContent("#ex-name"), "ベンチプレス");
+  assert.equal(await lp.inputValue("#ex"), "bench");
+  await lp.click(".back");
+  await lp.waitForSelector("#tab-today .card.ex");
+  assert.equal(await lp.locator('.card.ex:has(h3:text-is("ベンチプレス")) [data-s="0"] [data-f=w]').inputValue(), "62.5", "入力が保存されて戻る");
+  assert.ok(Object.keys((await data(lp)).workouts).some((k) => k.startsWith(todayStr)), "模型へ行く前に今日の入力が保存されている");
+  await legacy.ctx.close();
+  ok("手帳 → 模型（種目が選ばれた状態）→ 手帳に戻る、入力は保たれる");
+
   assert.deepEqual(errors, [], "ページのエラー");
   ok("ページのエラーなし");
   console.log(`すべて通過。画面写真: ${OUT}`);

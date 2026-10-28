@@ -93,7 +93,5 @@ function start() {
   showTab("today");
 }
 
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
-}
+registerServiceWorker();
 start();

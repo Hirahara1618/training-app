@@ -112,5 +112,5 @@ function run() {
 }
 
 $("#again").addEventListener("click", run);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+registerServiceWorker();
 run();

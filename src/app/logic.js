@@ -110,6 +110,15 @@ function lastTrainedByMuscle(workouts) {
   return out;
 }
 
+// ルーティンの曜日（1=月…7=日、0=なし）。weekday がない以前のルーティンはキーの名前から決める（現行版と同じ）
+const KEY_WEEKDAY = { mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6, sun: 7 };
+function routineWeekday(d) {
+  if (!d) return 0;
+  const w = num(d.weekday);
+  if (w != null) return w;
+  return KEY_WEEKDAY[d.key] || 0;
+}
+
 // 月曜はじまりの週の初日
 function weekStart(date) { return addDays(date, 1 - weekdayOf(date)); }
 

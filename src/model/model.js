@@ -338,6 +338,11 @@ $("#path").addEventListener("click", () => {
   if (View.ex) { buildProps(); renderAt(View.t); View.renderer.request(); }
 });
 $("#reload").addEventListener("click", () => location.reload());
+$(".back").addEventListener("click", (e) => {
+  let fromApp = false;
+  try { fromApp = !!document.referrer && new URL(document.referrer).origin === location.origin && !/model\.html/.test(document.referrer); } catch (err) { /* 判定できなければ通常のリンク */ }
+  if (fromApp && history.length > 1) { e.preventDefault(); history.back(); }
+});
 
 // ---- 検査用 ----
 // 姿勢を決めて即描画（スクリーンショット用）。near=true で拡大
@@ -373,4 +378,5 @@ window.__view = (yaw, pitch, dist) => {
   return true;
 };
 
+registerServiceWorker();
 main();
