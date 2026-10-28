@@ -177,7 +177,7 @@ function stretchMat(a, b) {
 
 // ---- 体の骨のデュアルクォータニオン（シェーダーに渡す並び）----
 function bodyDQ(solved) {
-  const out = new Float32Array(120);
+  const out = new Float32Array(BODY_BONES.length * 8);
   BODY_BONES.forEach((b, slot) => {
     const T = solved.bones[b];
     const { r, d } = dqFrom(T.R, T.t);
@@ -196,7 +196,7 @@ function skinParts(parts, dq, grip, filter, fn) {
     const n = p.pos.length / 3;
     for (let i = 0; i < n; i++) {
       const s0 = p.bones[i * 3], s1 = p.bones[i * 3 + 1], w0 = p.bones[i * 3 + 2], w1 = 1 - w0;
-      const g = p.extra[i * 2 + 1] * (s0 === 10 ? grip[0] : grip[1]);
+      const g = p.extra[i * 2 + 1] * (s0 === 10 ? grip[0] : s0 === 13 ? grip[1] : s0 === 4 ? (grip[2] || 0) : (grip[3] || 0));
       const v = [0, 1, 2].map((k) => p.pos[i * 3 + k] + (p.p2[i * 3 + k] - p.pos[i * 3 + k]) * g);
       let r0 = R(s0), d0 = D(s0), r1 = R(s1), d1 = D(s1), out;
       if (p.extra[i * 2] > 0.5) {

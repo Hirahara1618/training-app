@@ -45,6 +45,12 @@ function solvePose(rig, P, state) {
   const R1 = M3.mul(R22, M3.rx(P.head || 0));
   B[1] = rigid(R1, rig.NP, applyT(B[22], rig.NP));
 
+  // 肩甲骨の骨：胸郭と同じ回転で、肩甲骨の動きの分だけずれる
+  for (const side of ["R", "L"]) {
+    const sg = side === "R" ? -1 : 1;
+    B[BONE[side].scap] = { R: R22, t: V.add(B[22].t, M3.apply(R22, scapShift(P, sg))) };
+  }
+
   const sk = {
     onPelvis: (p) => applyT(B[0], p),
     onThorax: (p) => applyT(B[22], p),
@@ -78,6 +84,7 @@ function solvePose(rig, P, state) {
     else Rf = M3.mul(Rabd, M3.rx(L.foot || 0));
     B[ids.foot] = rigid(Rf, s.A, Ae);
     out.extra[`knee${side}`] = K;
+    out.extra[`toe${side}`] = Math.max(0, Math.min(1, (L.toe || 0) / TOE_MAX));
     out.extra[`ankle${side}`] = Ae;
   }
 
@@ -166,19 +173,25 @@ function solvePose(rig, P, state) {
     out.extra[`elbow${side}`] = E;
   }
   state.twist = state.twistNext;
-  // 握り（0〜1）。関数なら左右別 grip(sg)
+  // 握り（0〜1）。関数なら左右別 grip(sg)。後ろの2つは足の指の反り（0〜1）
   const g = P.grip == null ? (bar ? 1 : 0) : P.grip;
   out.gripLR = typeof g === "function" ? [g(-1), g(1)] : [g, g];
+  out.gripLR.push(out.extra.toeR, out.extra.toeL);
   out.grip = Math.max(out.gripLR[0], out.gripLR[1]);
   out.cables = P.cables ? resolveFn(P.cables, sk, out) : [];
   out.ropes = P.ropes ? resolveFn(P.ropes, sk, out) : [];
   return out;
 }
 
+// 肩甲骨の動き（胸郭の座標でのずれ m）：elev 挙上(+)・下制(−)、pro 外転＝前へ(+)・内転＝寄せる(−)。shrug は elev と同じ
+function scapShift(P, sg) {
+  const sc = typeof P.scap === "function" ? P.scap(sg) : (P.scap || {});
+  const elev = (sc.elev || 0) + (P.shrug || 0), pro = sc.pro || 0;
+  return [sg * 0.35 * Math.max(0, pro) + sg * 0.25 * Math.min(0, pro), elev, pro];
+}
 function shoulderPos(rig, P, B, sg) {
   const s = rig.sides[sg < 0 ? "R" : "L"];
-  const S = applyT(B[22], s.S);
-  return P.shrug ? V.add(S, M3.apply(B[22].R, [0, P.shrug, 0])) : S;
+  return V.add(applyT(B[22], s.S), M3.apply(B[22].R, scapShift(P, sg)));
 }
 
 // 腕の長さ（肩から握る位置まで、肘を伸ばしたとき）

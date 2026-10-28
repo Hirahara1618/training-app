@@ -108,7 +108,7 @@ splitSquat("bss", {
 });
 splitSquat("c_lunge", {
   roles: SPLIT_ROLES, hip0: [-0.03, 0.72], hip1: [-0.03, 0.43], front: [0.32, 0.054],
-  rear: { ankle: [-0.38, 0.09], foot: 0.6 },
+  rear: { ankle: [-0.38, 0.09], foot: 0.6, toe: 0.6 },
 });
 
 // 座って脚で押す（レッグプレス・カーフレイズ）
@@ -445,9 +445,8 @@ defineExercise({
 });
 
 // ---- ふくらはぎ ----
-// かかとを上げる：足の母指球より少し先（指の付け根）を支点に、足首ごと上がる
-// （足を1枚の板として回すので、支点を指先寄りにして、指が台に入る深さを小さくしている）
-function calfPivot(rig, side) { return V.add(rig.sides[side].T, [0, 0, 0.05]); }
+// かかとを上げる：母指球（足の指の付け根）を支点に足首ごと上がる。足の指はその分だけ反らせて台に平らにつける
+function calfPivot(rig, side) { return rig.sides[side].T; }
 function calfAnkle(rig, side, phi, lift, dz) {
   const s = rig.sides[side], P = calfPivot(rig, side);
   const A = V.add(V.add(P, [0, lift, dz || 0]), M3.apply(M3.rx(phi), V.sub(s.A, P)));
@@ -464,7 +463,7 @@ defineExercise({
     const rig = fit.rig, phi = lerp(-0.3, 0.33, ease(t)), s = rig.sides.R;
     const A = calfAnkle(rig, "R", phi, CALF_BLOCK);
     const d = [A[0] - s.A[2], A[1] - s.A[1]];
-    const leg = { ankle: A, abd: 0, foot: phi };
+    const leg = { ankle: A, abd: 0, foot: phi, toe: Math.max(0, phi) };
     return {
       hip: [rig.hipC[2] + d[0] - 0.005, rig.hipC[1] + d[1] - 0.004], trunk: 0.02,
       legs: { R: leg, L: leg }, bar: [0, d[1], d[0]],
@@ -492,7 +491,7 @@ defineExercise({
   pose(t, fit) {
     const rig = fit.rig, phi = lerp(-0.25, 0.45, ease(t));
     const A = [LEGPRESS.hip[0] + 0.755, LEGPRESS.hip[1] + 0.08];
-    const leg = { ankle: A, x: 0.12, abd: 0.05, foot: { shin: phi } };
+    const leg = { ankle: A, x: 0.12, abd: 0.05, foot: { shin: phi }, toe: Math.max(0, phi) };
     return Object.assign(legPressBase(rig), {
       legs: { R: leg, L: leg },
       bar: (sk) => { const p = sk.onBone(4, calfPivot(rig, "R")); return [0, p[1], p[2]]; },
@@ -509,8 +508,8 @@ defineExercise({
   cam: { target: [0, 0.55, 0.25], dist: 3.0, yaw: 1.3 },
   fitPads: [{ name: "seat", n: [0, 1, 0], x: [-0.2, 0.2], z: [-0.16, 0.22], slots: [0, 2, 5] }],
   pose(t, fit) {
-    const rig = fit.rig, phi = lerp(-0.3, 0.33, ease(t)), hip = [-0.05, 0.53];
-    const leg = { ankle: calfAnkle(rig, "R", phi, CALF_BLOCK, SEATCALF_DZ), x: 0.1, abd: 0.05, foot: phi };
+    const rig = fit.rig, phi = lerp(-0.3, 0.33, ease(t)), hip = [-0.05, 0.55];
+    const leg = { ankle: calfAnkle(rig, "R", phi, CALF_BLOCK, SEATCALF_DZ), abd: 0, foot: phi, toe: Math.max(0, phi) };
     return {
       hip, trunk: 0.15, legs: { R: leg, L: leg },
       bar: (sk) => { const K = sk.extra.kneeR; return [0, K[1] + 0.1, K[2] - 0.02]; },

@@ -88,9 +88,12 @@ try {
     await page.goto(URL);
     await page.waitForSelector(".set[data-s=\"0\"]");
 
-    // 設定していない版（client.json なし）では設定欄を出さない
+    // 設定していない版（client.json なし）では設定欄を出さない。ビルドに本物の設定が入っていても空にして確かめる
+    await page.evaluate(() => { RestPush.config.url = ""; RestPush.config.key = ""; });
     await page.click('[data-tab="history"]');
-    assert.equal(await page.$("#push"), null, "サーバー未設定なら設定欄なし");
+    await page.click('[data-tab="today"]');
+    await page.click('[data-tab="history"]');
+    assert.equal(await page.evaluate(() => !!document.querySelector("#push")), false, "サーバー未設定なら設定欄なし");
     await configure(page);
     await page.waitForSelector("#push [data-act=push-on]");
     await page.click("#push [data-act=push-on]");

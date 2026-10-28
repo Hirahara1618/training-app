@@ -1,17 +1,19 @@
 "use strict";
 // 骨格（静止姿勢）と重み付け（CLAUDE.md 6.1, 6.2）
 //
-// 骨の番号: 0 骨盤, 1 頭, 2–4 右 太もも・すね・足, 5–7 左, 8–10 右 上腕・前腕・手, 11–13 左, 22 胸郭
+// 骨の番号: 0 骨盤, 1 頭, 2–4 右 太もも・すね・足, 5–7 左, 8–10 右 上腕・前腕・手, 11–13 左, 22 胸郭, 23・24 右・左の肩甲骨
 // 器具: 14 静止, 15 バー, 16–17 ケーブル, 18–19 ダンベル, 20–21 ロープ
-// シェーダーの DQ 配列では 0–13 をそのまま、胸郭(22)を 14 番目に置く。
+// シェーダーの DQ 配列では 0–13 をそのまま、胸郭(22)を 14、肩甲骨(23, 24)を 15, 16 番目に置く。
 
 const BONE = {
   pelvis: 0, head: 1, thorax: 22,
-  R: { thigh: 2, shin: 3, foot: 4, upper: 8, fore: 9, hand: 10 },
-  L: { thigh: 5, shin: 6, foot: 7, upper: 11, fore: 12, hand: 13 },
+  R: { thigh: 2, shin: 3, foot: 4, upper: 8, fore: 9, hand: 10, scap: 23 },
+  L: { thigh: 5, shin: 6, foot: 7, upper: 11, fore: 12, hand: 13, scap: 24 },
 };
-const BODY_BONES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 22];
-function boneSlot(b) { return b === 22 ? 14 : b; }
+const BODY_BONES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 22, 23, 24];
+function boneSlot(b) { return b === 22 ? 14 : b === 23 ? 15 : b === 24 ? 16 : b; }
+const TOE_MAX = 0.9;       // 足の指を反らせた位置を前計算する角度（rad）。姿勢の toe はこれに対する割合で混ぜる
+const THUMB_WRAP = -1.25;  // 親指をバーに巻きつける角度（rad）
 
 // 肩まわりの薄い筋：上腕の線分からの距離 [ここより遠いと体幹, ここより近いと上腕]
 const SHOULDER_BLEND = { pecs: [0.07, 0.02], lats: [0.04, 0.012], scap: [0.04, 0.012], serratus: [0.03, 0.01], delts: [0.11, 0.035], traps: [0.04, 0.012] };
@@ -100,10 +102,48 @@ function buildHand(rig, parts) {
   };
   const hand = { R: { Kc, a0, fh, p0, Cb }, thumbPts: sample(THUMB_PARTS, 2), fingerPts: sample(FINGER_BONES, 2) };
   hand.R.curlAxis = V.norm(V.cross(fh, p0));
+  // 親指：中手骨の先（MP関節）と、親指の先の向き
+  const farFromWrist = (id, frac) => {
+    const pos = byId[id].pos, pts = [];
+    for (let i = 0; i < pos.length; i += 3) pts.push([pos[i], pos[i + 1], pos[i + 2]]);
+    pts.sort((a, b) => V.dist(b, R.W) - V.dist(a, R.W));
+    const top = pts.slice(0, Math.max(3, Math.round(pts.length * frac)));
+    return V.scale(top.reduce((s, p) => V.add(s, p), [0, 0, 0]), 1 / top.length);
+  };
+  const tMcp = farFromWrist("FMA24464", 0.1), tTip = farFromWrist("FMA24459", 0.1);
+  hand.R.tMcp = tMcp;
+  hand.R.tDir = V.norm(V.sub(tTip, tMcp));
   hand.L = { Kc: V.mirror(Kc), a0: V.mirror(a0), fh: V.mirror(fh), p0: V.mirror(p0), Cb: V.mirror(Cb) };
   hand.L.curlAxis = V.norm(V.cross(hand.L.fh, hand.L.p0));
+  hand.L.tMcp = V.mirror(hand.R.tMcp);
+  hand.L.tDir = V.mirror(hand.R.tDir);
   rig.hand = hand;
   return hand;
+}
+
+// 足の指の付け根（MTP関節）の線と、肩甲骨の中心をメッシュから求める
+function buildFootAndScap(rig, parts) {
+  const byId = {};
+  for (const p of parts) if (p.side !== "L") byId[p.id] = p;
+  const R = rig.sides.R;
+  const fd = V.norm([R.T[0] - R.A[0], 0, R.T[2] - R.A[2]]);
+  const heads = ["FMA24507", "FMA24509", "FMA24511", "FMA24513", "FMA24515"].map((id) => {
+    const pos = byId[id].pos, pts = [];
+    for (let i = 0; i < pos.length; i += 3) pts.push([pos[i], pos[i + 1], pos[i + 2]]);
+    pts.sort((a, b) => V.dot(b, fd) - V.dot(a, fd));
+    const top = pts.slice(0, Math.max(3, Math.round(pts.length * 0.1)));
+    return V.scale(top.reduce((s, p) => V.add(s, p), [0, 0, 0]), 1 / top.length);
+  });
+  const mc = V.scale(heads.reduce((s, p) => V.add(s, p), [0, 0, 0]), 1 / heads.length);
+  // 指を反らせる軸（前を上へ倒す向き）
+  const mk = (m, f) => ({ mc: m, fd: f, axis: V.norm(V.cross(f, [0, 1, 0])) });
+  rig.foot = { R: mk(mc, fd), L: mk(V.mirror(mc), V.mirror(fd)) };
+  // 肩甲骨の中心
+  const sc = byId.FMA13395.pos;
+  let c = [0, 0, 0];
+  for (let i = 0; i < sc.length; i += 3) c = V.add(c, [sc[i], sc[i + 1], sc[i + 2]]);
+  c = V.scale(c, 3 / sc.length);
+  rig.scapC = { R: c, L: V.mirror(c) };
 }
 
 // ---- 重み付け ----
@@ -129,18 +169,29 @@ function skinWeights(rig, p, v) {
     const tf = V.dot(V.sub(v, s.E), s.fHat);
     return [B.fore, B.hand, 1 - smoothstep(s.Lf - 0.025, s.Lf + 0.015, tf)];
   };
+  // 肩甲骨のまわり：肩甲骨の中心と肩（肩峰）に近いほど肩甲骨の骨に付ける
+  const scapW = () => Math.max(smoothstep(0.16, 0.07, V.dist(v, rig.scapC[sideKey])), smoothstep(0.15, 0.06, V.dist(v, s.S)));
   const shoulder = (role) => {
     const [far, near] = SHOULDER_BLEND[role];
     let w = smoothstep(far, near, segDist(v, s.S, s.E));
     if (SHOULDER_ROOT_ONLY[role]) w *= smoothstep(0.12, 0.06, V.dist(v, s.S));
-    if (w > 0.001) return [B.upper, 22, w];
+    // 上腕と混ぜる相手は胸郭ではなく肩甲骨（肩をすくめる・寄せると一緒に動く）
+    if (w > 0.001) return [B.upper, B.scap, w];
+    const ws = scapW();
+    if (ws > 0.01 && y > rig.SP[1] + 0.1) return [B.scap, 22, ws];
     if (role === "traps" && y > rig.c7[1] + 0.02) return neck();
     return trunk();
   };
   const legMid = (s.H[1] + s.K[1]) / 2, shinMid = (s.K[1] + s.A[1]) / 2;
 
   if (PELVIS_PARTS[p.id]) return [0, 0, 1];
-  if (SCAP_BONES[p.id]) return shoulder("scap");
+  if (p.id === "FMA13395") {
+    // 肩甲骨：関節のあたりは上腕と、それ以外は肩甲骨の骨そのもの
+    const w = smoothstep(0.04, 0.012, segDist(v, s.S, s.E));
+    return w > 0.001 ? [B.upper, B.scap, w] : [B.scap, B.scap, 1];
+  }
+  // 鎖骨：胸骨側は胸郭、肩側は肩甲骨と一緒に動く
+  if (p.id === "FMA13322") return [B.scap, 22, smoothstep(0.03, 0.15, Math.abs(v[0]))];
   if (p.id === PATELLA) return knee();
   if (SHIN_BONES[p.id]) return [B.shin, B.shin, 1];
   if (FOOT_BONES.has(p.id) || p.r === "foot") return [B.foot, B.foot, 1];
@@ -189,6 +240,32 @@ function buildSkin(rig, parts) {
           p2[i * 3] = q[0]; p2[i * 3 + 1] = q[1]; p2[i * 3 + 2] = q[2];
           // 法線も指の曲がりに合わせて回す（軸 fh×p0、角度 φ で fh が p0 側へ倒れる）
           const nr = M3.apply(M3.axis(h.curlAxis, phi), [p.nrm[i * 3], p.nrm[i * 3 + 1], p.nrm[i * 3 + 2]]);
+          n2[i * 3] = nr[0]; n2[i * 3 + 1] = nr[1]; n2[i * 3 + 2] = nr[2];
+          extra[i * 2 + 1] = 1;
+        } else if (sAlong > -0.03 && isThumb(hand, sideKey, v)) {
+          // 親指：MP関節より先を、バーの軸まわりに指と反対側から巻きつける
+          const st = V.dot(V.sub(v, h.tMcp), h.tDir);
+          if (st > 0) {
+            const ang = THUMB_WRAP * smoothstep(0, 0.03, st);
+            const Rt = M3.axis(V.norm(h.a0), ang);
+            const q = V.add(h.Cb, M3.apply(Rt, V.sub(v, h.Cb)));
+            p2[i * 3] = q[0]; p2[i * 3 + 1] = q[1]; p2[i * 3 + 2] = q[2];
+            const nr = M3.apply(Rt, [p.nrm[i * 3], p.nrm[i * 3 + 1], p.nrm[i * 3 + 2]]);
+            n2[i * 3] = nr[0]; n2[i * 3 + 1] = nr[1]; n2[i * 3 + 2] = nr[2];
+            extra[i * 2 + 1] = 1;
+          }
+        }
+      }
+      // 足の指：付け根（MTP）より先を、付け根の軸まわりに TOE_MAX だけ反らせた位置
+      const footSide = b0 === 4 ? "R" : b0 === 7 ? "L" : null;
+      if (footSide && w0 > 0.98 && rig.foot) {
+        const f = rig.foot[footSide];
+        const sF = V.dot(V.sub(v, f.mc), f.fd);
+        if (sF > 0) {
+          const Rt = M3.axis(f.axis, TOE_MAX * smoothstep(0, 0.012, sF));
+          const q = V.add(f.mc, M3.apply(Rt, V.sub(v, f.mc)));
+          p2[i * 3] = q[0]; p2[i * 3 + 1] = q[1]; p2[i * 3 + 2] = q[2];
+          const nr = M3.apply(Rt, [p.nrm[i * 3], p.nrm[i * 3 + 1], p.nrm[i * 3 + 2]]);
           n2[i * 3] = nr[0]; n2[i * 3 + 1] = nr[1]; n2[i * 3 + 2] = nr[2];
           extra[i * 2 + 1] = 1;
         }

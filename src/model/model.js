@@ -107,7 +107,7 @@ function makeFit(parts, rig) {
   let backMin = Infinity;
   for (const p of parts) for (let i = 0; i < p.pos.length / 3; i++) {
     const s0 = p.bones[i * 3];
-    if ((s0 === 0 || s0 === 14) && !PELVIS_PARTS[p.id]) backMin = Math.min(backMin, p.pos[i * 3 + 2]);
+    if ((s0 === 0 || s0 === 14 || s0 === 15 || s0 === 16) && !PELVIS_PARTS[p.id]) backMin = Math.min(backMin, p.pos[i * 3 + 2]);
   }
   return { rig, backZ: (y) => scan(y).lo, frontZ: (y) => scan(y).hi, backMin };
 }
@@ -127,7 +127,8 @@ function solveAt(t, state) {
 
 // 体の頂点のうち、条件に合うものの dot(v, n) の最小値（t の姿勢で）
 function bodyMinAlong(s, n, f) {
-  const slots = f.slots || [0, 14, 2, 5];
+  let slots = f.slots || [0, 14, 2, 5];
+  if (slots.includes(14)) slots = slots.concat([15, 16]); // 肩甲骨の骨（背中の上の方）も胴として測る
   let m = Infinity;
   skinFast(View.parts, bodyDQ(s), s.gripLR, (p) => !PELVIS_PARTS[p.id], (p, i, x, y, z) => {
     if (!slots.includes(p.bones[i * 3])) return;
@@ -281,6 +282,7 @@ async function main() {
     View.parts = decodeParts(buf, manifest);
     View.rig = buildRig(MESH_FILES.joints, manifest.zMin);
     buildHand(View.rig, View.parts);
+    buildFootAndScap(View.rig, View.parts);
     lap("組立");
     buildSkin(View.rig, View.parts);
     lap("重み");

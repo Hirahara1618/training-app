@@ -160,7 +160,7 @@ defineExercise({
     const S = [A[0] + Math.sqrt(Lb * Lb - (Sy - A[1]) ** 2), Sy];
     const th = Math.atan2(S[0] - A[0], S[1] - A[1]) + 0.036 - 0.02 * t;
     const hip = hipFromShoulder(rig, th, S);
-    const leg = { ankle: A, x: 0.1, abd: 0, foot: "shin" };
+    const leg = { ankle: A, x: 0.1, abd: 0, foot: "shin", toe: 0.8 };
     const elbow = (sg, sk) => { const Sh = sk.shoulder(sg); return [Sh[0] * 0.85, MAT_TOP + 0.05, Sh[2] + 0.01]; };
     return {
       hip, trunk: th, head: -0.15, legs: { R: leg, L: leg },

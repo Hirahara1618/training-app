@@ -8,7 +8,7 @@ compatibility_date = "2025-09-01"
 ALLOWED_ORIGINS = "https://hirahara1618.github.io,http://localhost:8080"
 VAPID_SUBJECT = "https://hirahara1618.github.io/training-app/"
 # 公開鍵（秘密鍵は secret の VAPID_PRIVATE_JWK に入れる。push-server/vapid-keys.mjs で作る）
-VAPID_PUBLIC = ""
+VAPID_PUBLIC = "BJU5m-fHJAxKDYhdTHzyIxL5nrAxntYLP1tygswf_WATGoE3570ZYj4_V5WroostviQMkwznqaEH9EpwBCfX7zg"
 
 [[durable_objects.bindings]]
 name = "TIMERS"

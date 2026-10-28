@@ -3,7 +3,7 @@
 // 体の頂点は CPU 側でシェーダーと同じ式で動かす（座面の押し出しの前の位置で測る）。
 
 const REGION_NAMES = ["骨盤", "頭", "右太もも", "右すね", "右足", "左太もも", "左すね", "左足",
-  "右上腕", "右前腕", "右手", "左上腕", "左前腕", "左手", "胸郭"];
+  "右上腕", "右前腕", "右手", "左上腕", "左前腕", "左手", "胸郭", "右肩甲骨", "左肩甲骨"];
 const LIMIT = { pad: 0.03, other: 0.015, self: 0.01 };
 const SMOOTH_MIN = 0.02;
 
@@ -14,7 +14,7 @@ function skinFast(parts, dq, grip, filter, fn) {
     const n = p.pos.length / 3, P = p.pos, Q = p.p2, BN = p.bones, EX = p.extra;
     for (let i = 0; i < n; i++) {
       const s0 = BN[i * 3], s1 = BN[i * 3 + 1], w0 = BN[i * 3 + 2], w1 = 1 - w0;
-      const g = EX[i * 2 + 1] * (s0 === 10 ? grip[0] : grip[1]);
+      const g = EX[i * 2 + 1] * (s0 === 10 ? grip[0] : s0 === 13 ? grip[1] : s0 === 4 ? (grip[2] || 0) : (grip[3] || 0));
       const px = P[i * 3] + (Q[i * 3] - P[i * 3]) * g, py = P[i * 3 + 1] + (Q[i * 3 + 1] - P[i * 3 + 1]) * g, pz = P[i * 3 + 2] + (Q[i * 3 + 2] - P[i * 3 + 2]) * g;
       const a = s0 * 8, b = s1 * 8;
       let x, y, z;

@@ -25,8 +25,8 @@ attribute vec2 aExtra;  // 線形で混ぜるか, 握りの対象か
 attribute vec3 aP2;     // 握ったときの位置
 attribute vec3 aN2;     // 握ったときの法線
 uniform mat4 uViewProj;
-uniform vec4 uDQ[30];
-uniform vec2 uGrip;
+uniform vec4 uDQ[34];
+uniform vec4 uGrip;   // 握り（右手, 左手）, 足の指の反り（右足, 左足）
 uniform vec4 uPadC[${MAX_PADS}];  // 中心xyz, cos(x軸回転)
 uniform vec4 uPadS[${MAX_PADS}];  // 半分の大きさxyz（x<=0 で無効）, sin(x軸回転)
 varying vec3 vNrm;
@@ -56,7 +56,7 @@ void main() {
   vec4 d0 = uDQ[i0 * 2 + 1];
   vec4 r1 = uDQ[i1 * 2];
   vec4 d1 = uDQ[i1 * 2 + 1];
-  float g = aExtra.y * (i0 == 10 ? uGrip.x : uGrip.y);
+  float g = aExtra.y * (i0 == 10 ? uGrip.x : (i0 == 13 ? uGrip.y : (i0 == 4 ? uGrip.z : uGrip.w)));
   vec3 p = mix(aPos, aP2, g);
   vec3 n0 = normalize(mix(aNrm, aN2, g));
   vec3 P;
@@ -245,11 +245,11 @@ function createRenderer(host, batches) {
   let props = null;
   let useExerciseIdx = false;
   const uni = {
-    dq: new Float32Array(120), mats: new Float32Array(128), grip: new Float32Array(2),
+    dq: new Float32Array(136), mats: new Float32Array(128), grip: new Float32Array(4),
     padC: new Float32Array(MAX_PADS * 4), padS: new Float32Array(MAX_PADS * 4),
   };
   // 初期値：恒等変換
-  for (let i = 0; i < 15; i++) uni.dq[i * 8 + 3] = 1;
+  for (let i = 0; i < 17; i++) uni.dq[i * 8 + 3] = 1;
   for (let i = 0; i < 8; i++) { uni.mats[i * 16] = uni.mats[i * 16 + 5] = uni.mats[i * 16 + 10] = uni.mats[i * 16 + 15] = 1; }
 
   canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); lost = true; listeners.lost.forEach((f) => f()); });
@@ -294,7 +294,7 @@ function createRenderer(host, batches) {
     gl.uniformMatrix4fv(P.uViewProj, false, vp);
     gl.uniform3fv(P.uEye, eye);
     gl.uniform4fv(P.uDQ, uni.dq);
-    gl.uniform2fv(P.uGrip, uni.grip);
+    gl.uniform4fv(P.uGrip, uni.grip);
     gl.uniform4fv(P.uPadC, uni.padC);
     gl.uniform4fv(P.uPadS, uni.padS);
     gl.uniform1f(P.uFlat, pick ? 1 : 0);
@@ -400,11 +400,11 @@ function createRenderer(host, batches) {
       if (props) for (const k of ["pos", "nrm", "col", "bone", "idx"]) gl.deleteBuffer(props[k]);
       props = m && m.ni ? { pos: buf(m.pos), nrm: buf(m.nrm), col: buf(m.col), bone: buf(m.bone), idx: buf(m.idx, gl.ELEMENT_ARRAY_BUFFER), ni: m.ni } : null;
     },
-    // dq: 15骨×(実部4+双対部4), mats: 8行列×16, grip: [右,左], pads: [{c,h,rx}]
+    // dq: 17骨×(実部4+双対部4), mats: 8行列×16, grip: [右手,左手,右足の指,左足の指], pads: [{c,h,rx}]
     setPose(dq, mats, grip, pads) {
       uni.dq.set(dq);
       uni.mats.set(mats);
-      uni.grip[0] = grip[0]; uni.grip[1] = grip[1];
+      for (let k = 0; k < 4; k++) uni.grip[k] = grip[k] || 0;
       uni.padC.fill(0); uni.padS.fill(0);
       (pads || []).slice(0, MAX_PADS).forEach((p, i) => {
         uni.padC.set([p.c[0], p.c[1], p.c[2], Math.cos(p.rx || 0)], i * 4);
