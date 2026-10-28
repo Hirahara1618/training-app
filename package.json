@@ -1,0 +1,12 @@
+{
+  "name": "training-app",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "トレーニング手帳（PWA）と3D筋肉模型",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "serve": "node tools/serve.mjs dist 8080",
+    "icons": "node tools/make-icons.mjs"
+  }
+}

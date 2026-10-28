@@ -1,0 +1,11 @@
+# ビルド出力（GitHub Actions で生成して公開する）
+/dist/
+node_modules/
+__pycache__/
+*.pyc
+
+# BodyParts3D の元データ（大きいので入れない。加工済みは data/bodyparts3d/ に置く）
+/data/raw/
+
+# 検査ツールの出力
+/tools/out/
