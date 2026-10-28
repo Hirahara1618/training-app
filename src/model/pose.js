@@ -7,7 +7,8 @@
 //   hands: (sg, sk)=>[x,y,z]（握る位置）, pole: (sg, sk)=>肘の向き, elbow?: (sg, sk)=>肘の位置,
 //   palm?: (sg, sk)=>手のひらの向き, grip?: 0〜1, bar?: [x,y,z] | sk=>[x,y,z],
 //   gripAxis?: sg=>握る棒の軸（バーがあれば x 軸）, gripSign?: ±1（+1 順手）,
-//   cables?: [[始点,終点],…] }
+//   knuckles?: (sg, sk)=>人差し指→小指の向き（ダンベル・ハンドル。前腕と平行にしない）,
+//   cables?: (sk, out)=>[[始点,終点],…]（骨16,17）, ropes?: 同じ（骨20,21） }
 // sg は右=-1・左=+1。sk は体幹まで解いた途中の骨格（onThorax, onPelvis, shoulder）。
 
 function rigid(R, J0, J) { return { R, t: V.sub(J, M3.apply(R, J0)) }; }
@@ -48,9 +49,13 @@ function solvePose(rig, P, state) {
     onPelvis: (p) => applyT(B[0], p),
     onThorax: (p) => applyT(B[22], p),
     shoulder: (sg) => shoulderPos(rig, P, B, sg),
+    // 骨に付いた点・向き（脚の骨は脚を解いたあとで使える）
+    onBone: (b, p) => applyT(B[b], p),
+    dir: (b, v) => M3.apply(B[b].R, v),
     rig,
   };
   out.sk = sk;
+  sk.extra = out.extra;
 
   // 脚：股関節を通る体の側面の平面内で解く
   for (const side of ["R", "L"]) {
@@ -72,6 +77,8 @@ function solvePose(rig, P, state) {
     else if (L.foot && typeof L.foot === "object") Rf = M3.mul(M3.axis(V.norm(n), L.foot.shin), Rshin);
     else Rf = M3.mul(Rabd, M3.rx(L.foot || 0));
     B[ids.foot] = rigid(Rf, s.A, Ae);
+    out.extra[`knee${side}`] = K;
+    out.extra[`ankle${side}`] = Ae;
   }
 
   // バー（他の位置の基準になるので先に決める）
@@ -88,28 +95,51 @@ function solvePose(rig, P, state) {
     const fixedElbow = P.elbow ? P.elbow(sg, sk) : null;
     let Rh = state.lastRh && state.lastRh[side] ? state.lastRh[side] : M3.I();
     let E, W, Ru, Rfo, Rhand;
-    for (let it = 0; it < 4; it++) {
+    // 手の回転 → 手首の目標 → 前腕の向き → ねじれ → 手の回転 … を収まるまで繰り返す
+    // （途中で打ち切ると前のコマの結果に引きずられ、動きがガタつく）
+    // 最初のコマ（前の結果がない）は十分に収束させる。そうしないと次のコマとの差が跳ねに見える
+    let Wprev = null;
+    const maxIt = state.lastRh && state.lastRh[side] ? 50 : 150;
+    for (let it = 0; it < maxIt; it++) {
       // 握る位置が G に来るように手首の目標を決める
       const Wt = V.sub(G, M3.apply(Rh, V.sub(h.Cb, s.W)));
+      if (Wprev && V.dist(Wt, Wprev) < 1e-6) break;
+      Wprev = Wt;
       if (fixedElbow) {
-        E = fixedElbow;
+        // 肘の位置は向きとして使い、上腕の長さは保つ
+        E = V.add(S, V.scale(V.norm(V.sub(fixedElbow, S)), s.Lu));
         W = V.add(E, V.scale(V.norm(V.sub(Wt, E)), s.Lf));
       } else {
         const r = twoBone(S, Wt, s.Lu, s.Lf, pole);
         E = r.mid; W = r.end;
       }
-      // 曲げの面：肩・手首と、肘がその線からずれる向き（ほぼ伸びているときは pole）
-      const sw = V.norm(V.sub(W, S));
-      let kd = V.perp(V.sub(E, S), sw);
-      kd = V.len(kd) > 0.004 ? V.norm(kd) : V.norm(V.perp(pole, sw));
-      const n = V.norm(V.cross(V.sub(W, S), kd));
+      // 曲げの面。肘を固定する種目では上腕と pole の面（前腕の振りで上腕がねじれないように）。
+      // それ以外は肩・手首と、肘がその線からずれる向き。ほぼ伸びているときは pole の向きへなめらかに移す
+      let n;
+      if (fixedElbow) {
+        const u = V.norm(V.sub(E, S));
+        n = V.norm(V.cross(u, V.norm(V.perp(pole, u))));
+      } else {
+        const sw = V.norm(V.sub(W, S));
+        const kg = V.perp(V.sub(E, S), sw);
+        let kp = V.norm(V.perp(pole, sw));
+        if (V.dot(kp, kg) < 0) kp = V.scale(kp, -1);
+        const w = smoothstep(0.002, 0.03, V.len(kg));
+        const kd = V.norm(V.add(V.scale(kp, 1 - w), V.scale(V.norm(kg), w)));
+        n = V.norm(V.cross(V.sub(W, S), kd));
+      }
       Ru = M3.align(V.sub(s.E, s.S), s.n0, V.sub(E, S), n);
       const Rf0 = M3.align(V.sub(s.W, s.E), s.n0, V.sub(W, E), n);
       // 手のひらのねじれ（前腕の軸まわり）。前腕は半分、手は全部
       const f = V.norm(V.sub(W, E));
       let cur, want;
       const axis = P.gripAxis ? P.gripAxis(sg) : (bar ? [1, 0, 0] : null);
-      if (axis) {
+      const kn = P.knuckles ? resolveFn(P.knuckles, sg, sk) : null;
+      if (kn) {
+        // 人差し指 → 小指の向きを直接指定（ダンベル・ハンドル）
+        cur = M3.apply(Rf0, h.a0);
+        want = kn;
+      } else if (axis) {
         cur = M3.apply(Rf0, h.a0);
         want = V.scale(axis, (P.gripSign == null ? 1 : P.gripSign) * sg);
       } else {
@@ -136,8 +166,12 @@ function solvePose(rig, P, state) {
     out.extra[`elbow${side}`] = E;
   }
   state.twist = state.twistNext;
-  out.grip = P.grip == null ? (bar ? 1 : 0) : P.grip;
+  // 握り（0〜1）。関数なら左右別 grip(sg)
+  const g = P.grip == null ? (bar ? 1 : 0) : P.grip;
+  out.gripLR = typeof g === "function" ? [g(-1), g(1)] : [g, g];
+  out.grip = Math.max(out.gripLR[0], out.gripLR[1]);
   out.cables = P.cables ? resolveFn(P.cables, sk, out) : [];
+  out.ropes = P.ropes ? resolveFn(P.ropes, sk, out) : [];
   return out;
 }
 
@@ -151,4 +185,15 @@ function shoulderPos(rig, P, B, sg) {
 function armReach(rig) {
   const s = rig.sides.R;
   return s.Lu + s.Lf + V.dist(s.W, rig.hand.R.Cb) * 0.9;
+}
+
+// 骨格全体を上下に動かす（床に寝る・座る種目で体を床に乗せる）
+function shiftSolved(out, dy) {
+  if (!dy) return out;
+  const d = [0, dy, 0];
+  for (const b in out.bones) out.bones[b] = { R: out.bones[b].R, t: V.add(out.bones[b].t, d) };
+  for (const k in out.extra) if (Array.isArray(out.extra[k])) out.extra[k] = V.add(out.extra[k], d);
+  out.cables = out.cables.map(([a, b]) => [V.add(a, d), V.add(b, d)]);
+  out.ropes = out.ropes.map(([a, b]) => [V.add(a, d), V.add(b, d)]);
+  return out;
 }

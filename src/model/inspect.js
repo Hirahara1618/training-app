@@ -5,6 +5,7 @@
 const REGION_NAMES = ["骨盤", "頭", "右太もも", "右すね", "右足", "左太もも", "左すね", "左足",
   "右上腕", "右前腕", "右手", "左上腕", "左前腕", "左手", "胸郭"];
 const LIMIT = { pad: 0.03, other: 0.015, self: 0.01 };
+const SMOOTH_MIN = 0.02;
 
 // 速い版の頂点変形：fn(part, i, x, y, z) を呼ぶ（配列を作らない）
 function skinFast(parts, dq, grip, filter, fn) {
@@ -55,13 +56,13 @@ function worldPrims(props, mats) {
   for (const bx of props.boxes) {
     const c = applyMat4(M(bx.bone), bx.c);
     const r = Math.hypot(...bx.h);
-    out.push({ kind: "box", c, h: bx.h, cs: Math.cos(bx.rx), sn: Math.sin(bx.rx), pad: bx.pad, bone: bx.bone, label: bx.label,
+    out.push({ kind: "box", c, h: bx.h, cs: Math.cos(bx.rx), sn: Math.sin(bx.rx), pad: bx.pad, bone: bx.bone, label: bx.label, grip: bx.grip,
       lo: V.sub(c, [r, r, r]), hi: V.add(c, [r, r, r]) });
   }
   for (const cy of props.cyls) {
     const a = applyMat4(M(cy.bone), cy.a), b = applyMat4(M(cy.bone), cy.b);
     const ab = V.sub(b, a);
-    out.push({ kind: "cyl", a, ab, L2: V.dot(ab, ab), r: cy.r, bone: cy.bone, label: cy.label,
+    out.push({ kind: "cyl", a, ab, L2: V.dot(ab, ab), r: cy.r, bone: cy.bone, label: cy.label, grip: cy.grip,
       lo: [Math.min(a[0], b[0]) - cy.r, Math.min(a[1], b[1]) - cy.r, Math.min(a[2], b[2]) - cy.r],
       hi: [Math.max(a[0], b[0]) + cy.r, Math.max(a[1], b[1]) + cy.r, Math.max(a[2], b[2]) + cy.r] });
   }
@@ -89,6 +90,9 @@ function penetration(pr, x, y, z) {
   return Math.min(pr.r - d, t * L, (1 - t) * L);
 }
 
+// 握っている（または手の中を通る）器具：バー・手の器具・握る棒・ケーブル・ロープ
+function isHeld(pr) { return pr.grip || (pr.bone >= 15 && pr.bone <= 21); }
+
 function framesOf(n) { return Array.from({ length: n + 1 }, (_, k) => k / n); }
 
 // 器具へのめり込み。部位×器具ごとの最大の深さ（m）と、そのときの t
@@ -103,12 +107,12 @@ function inspectCheck(id, n) {
     const s = solveAt(t);
     const prims = worldPrims(View.props, equipMats(s));
     const holding = s.grip > 0;
-    skinFast(View.parts, bodyDQ(s), [s.grip, s.grip], (p) => !PELVIS_PARTS[p.id], (p, i, x, y, z) => {
+    skinFast(View.parts, bodyDQ(s), s.gripLR, (p) => !PELVIS_PARTS[p.id], (p, i, x, y, z) => {
       const slot = p.bones[i * 3];
       const hand = slot === 10 || slot === 13;
       for (const pr of prims) {
         // 握っている手と、握っている器具は除く
-        if (hand && holding && (pr.bone === 15 || pr.bone === 18 || pr.bone === 19)) continue;
+        if (hand && holding && isHeld(pr)) continue;
         const d = penetration(pr, x, y, z);
         if (d <= 0) continue;
         const key = `${REGION_NAMES[slot]}→${pr.label}`;
@@ -123,7 +127,7 @@ function inspectCheck(id, n) {
     // 器具が体の中に入っていないか（細いバーは頂点の検査では深さが半径までしか出ないため）
     for (const pr of prims) {
       if (pr.pad || pr.label === "床") continue;
-      const heldBy = holding && (pr.bone === 15 || pr.bone === 18 || pr.bone === 19);
+      const heldBy = holding && isHeld(pr);
       for (const sp of samplePrim(pr)) {
         for (const p of View.parts) {
           if (PELVIS_PARTS[p.id] || !p._posed) continue;
@@ -236,7 +240,7 @@ function inspectSelf(id, n) {
       const sd = rig.sides[k], b = BONE[k].thigh;
       return { a: applyT(s.bones[b], sd.H), b: applyT(s.bones[b], sd.K), name: k === "R" ? "右太もも" : "左太もも" };
     });
-    skinFast(View.parts, bodyDQ(s), [s.grip, s.grip], (p) => !PELVIS_PARTS[p.id], (p, i, x, y, z) => {
+    skinFast(View.parts, bodyDQ(s), s.gripLR, (p) => !PELVIS_PARTS[p.id], (p, i, x, y, z) => {
       const slot = p.bones[i * 3], w0 = p.bones[i * 3 + 2];
       if (slot < 8 || slot > 13 || w0 < 0.9) return;
       // 上腕の付け根（肩）は胴の隣にあるのが普通なので除く
@@ -293,7 +297,8 @@ function inspectSmooth(id, n) {
   for (const b of bones) {
     const ds = steps[b].map((x) => x.d).sort((a, c) => a - c);
     const med = ds[Math.floor(ds.length / 2)];
-    const jumps = steps[b].filter((x) => x.d > med * 3 && x.d > 0.005).map((x) => ({ t: x.t, ratio: x.d / (med || 1e-9) }));
+    // 中央値の3倍超。ただし、ほとんど動かない骨のわずかな揺れ（0.02 未満）は跳ねとしない
+    const jumps = steps[b].filter((x) => x.d > med * 3 && x.d > SMOOTH_MIN).map((x) => ({ t: x.t, ratio: x.d / (med || 1e-9), d: x.d }));
     out.bones[REGION_NAMES[b]] = { median: med, max: ds[ds.length - 1], jumps };
     if (jumps.length) out.ok = false;
   }

@@ -92,15 +92,50 @@ function makeFit(parts, rig) {
     }
     return (memo[key] = { lo, hi });
   };
-  return { rig, backZ: (y) => scan(y).lo, frontZ: (y) => scan(y).hi };
+  // 背中・お尻の最も後ろ（寝る種目で、股関節から床までの高さを決める）
+  let backMin = Infinity;
+  for (const p of parts) for (let i = 0; i < p.pos.length / 3; i++) {
+    const s0 = p.bones[i * 3];
+    if ((s0 === 0 || s0 === 14) && !PELVIS_PARTS[p.id]) backMin = Math.min(backMin, p.pos[i * 3 + 2]);
+  }
+  return { rig, backZ: (y) => scan(y).lo, frontZ: (y) => scan(y).hi, backMin };
 }
 
 const VIEWS = { front: 0, oblique: Math.PI / 4, side: Math.PI / 2, back: Math.PI };
 
 // ---- 種目 ----
-function solveAt(t) {
+function solveAt(t, state) {
   const ex = View.ex;
-  return solvePose(View.rig, ex.pose(t, View.fit), View.state);
+  const s = solvePose(View.rig, ex.pose(t, View.fit), state || View.state);
+  if (View.ground) {
+    const g = View.ground, x = clamp(t, 0, 1) * (g.length - 1), k = Math.min(g.length - 2, Math.floor(x));
+    shiftSolved(s, lerp(g[k], g[k + 1], x - k));
+  }
+  return s;
+}
+
+// 体の頂点のうち、条件に合うものの dot(v, n) の最小値（t の姿勢で）
+function bodyMinAlong(s, n, f) {
+  const slots = f.slots || [0, 14, 2, 5];
+  let m = Infinity;
+  skinFast(View.parts, bodyDQ(s), s.gripLR, (p) => !PELVIS_PARTS[p.id], (p, i, x, y, z) => {
+    if (!slots.includes(p.bones[i * 3])) return;
+    if ((f.x && (x < f.x[0] || x > f.x[1])) || (f.y && (y < f.y[0] || y > f.y[1])) || (f.z && (z < f.z[0] || z > f.z[1]))) return;
+    const d = x * n[0] + y * n[1] + z * n[2];
+    if (d < m) m = d;
+  });
+  return m;
+}
+
+// 床に寝る・座る種目：t ごとに体の最低点を床（ground.y）に合わせる上下の補正の表
+function groundTable(def) {
+  const g = def.ground, st = {}, out = [];
+  View.ground = null;
+  for (let k = 0; k <= 20; k++) {
+    const s = solveAt(k / 20, st);
+    out.push((g.y || 0) - 0.012 - bodyMinAlong(s, [0, 1, 0], g));
+  }
+  return out;
 }
 
 function selectExercise(id) {
@@ -124,19 +159,17 @@ function selectExercise(id) {
   }
   View.state = {};
   View.fit = Object.create(View.baseFit);
-  // t=0 の姿勢で体の最低点を測り、座面の高さを合わせる
-  const s0 = solveAt(0);
-  if (def.seat) {
-    const [x0, x1] = def.seat.x, [z0, z1] = def.seat.z;
-    let minY = Infinity;
-    skinParts(View.parts, bodyDQ(s0), [s0.grip, s0.grip], (p) => !PELVIS_PARTS[p.id], (p, i, v) => {
-      const s = p.bones[i * 3];
-      if (!(s === 0 || s === 14 || s === 2 || s === 5)) return;
-      if (v[0] < x0 || v[0] > x1 || v[2] < z0 || v[2] > z1) return;
-      if (v[1] < minY) minY = v[1];
-    });
-    View.fit.seatTop = minY + 0.012; // 1.2cm だけ沈み込ませる（座面の処理で平らになる）
+  View.ground = def.ground ? groundTable(def) : null;
+  // t=0 の姿勢で体を測り、座面・背もたれを体に合わせる（1.2cm だけ沈み込ませる。座面の処理で平らになる）
+  const s0 = solveAt(0, {});
+  const fits = def.fitPads || (def.seat ? [{ name: "seat", n: [0, 1, 0], x: def.seat.x, z: def.seat.z }] : []);
+  for (const f of fits) {
+    const n = V.norm(f.n);
+    View.fit[f.name] = { n, d: bodyMinAlong(s0, n, f) + 0.012 };
   }
+  if (View.fit.seat) View.fit.seatTop = View.fit.seat.d;
+  View.fit.s0 = s0;
+  View.fit.bar0 = s0.extra.bar || [0, 0, 0];
   View.fit.barTopZ = s0.extra.bar ? s0.extra.bar[2] : null;
   View.state = {};
   buildProps();
@@ -169,8 +202,11 @@ function buildProps() {
 
 function renderAt(t) {
   const s = solveAt(t);
-  const pads = View.props.boxes.filter((b) => b.pad && b.bone === 14).map((b) => ({ c: b.c, h: b.h, rx: b.rx }));
-  View.renderer.setPose(bodyDQ(s), equipMats(s), [s.grip, s.grip], pads);
+  // 座面（バーと一緒に動くものは今の位置に）
+  const bar = s.extra.bar || [0, 0, 0];
+  const pads = View.props.boxes.filter((b) => b.pad && (b.bone === 14 || b.bone === 15))
+    .map((b) => ({ c: b.bone === 15 ? V.add(b.c, bar) : b.c, h: b.h, rx: b.rx }));
+  View.renderer.setPose(bodyDQ(s), equipMats(s), s.gripLR, pads);
   View.solved = s;
   View.t = t;
   $("#t").value = Math.round(t * 100);

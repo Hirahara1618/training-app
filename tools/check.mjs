@@ -70,7 +70,7 @@ try {
     show("腕の重なり", r.self);
     const jumps = Object.entries(r.smooth.bones).filter(([, v]) => v.jumps.length);
     console.log(`  動きの跳ね: ${jumps.length ? "" : "なし"}`);
-    for (const [name, v] of jumps) console.log(`    ✗ ${name} ${v.jumps.map((j) => `t=${j.t.toFixed(2)}（中央値の${j.ratio.toFixed(1)}倍）`).join(" ")}`);
+    for (const [name, v] of jumps) console.log(`    ✗ ${name} ${v.jumps.map((j) => `t=${j.t.toFixed(2)}（${j.d.toFixed(3)}、中央値の${j.ratio.toFixed(1)}倍）`).join(" ")}`);
   }
   console.log(`\n${failed ? `${failed}種目が基準を超えています` : "すべて基準内"}`);
 } finally {

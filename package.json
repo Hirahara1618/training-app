@@ -10,7 +10,8 @@
     "icons": "node tools/make-icons.mjs",
     "test": "node tools/test-logic.mjs && npm run build && node tools/test-app.mjs",
     "check": "npm run build && node tools/check.mjs selftest lo && node tools/check.mjs all lo",
-    "sheets": "node tools/shot-ex.mjs"
+    "sheets": "node tools/shot-ex.mjs",
+    "overview": "node tools/overview.mjs"
   },
   "devDependencies": {
     "playwright-core": "^1.64.1"

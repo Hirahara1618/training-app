@@ -40,11 +40,11 @@ function propMesh(items, segs) {
         }
         idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
       }
-      boxes.push({ c: ctr, h, rx: rx || 0, pad: !!it.pad, bone: b, label: propLabel(it, b) });
+      boxes.push({ c: ctr, h, rx: rx || 0, pad: !!it.pad, bone: b, label: propLabel(it, b), grip: !!it.grip });
     } else if (it.cyl) {
       const { a, b: e, r } = it.cyl;
       addTube(vert, idx, [a, e], r, c, b, segs, true);
-      cyls.push({ a, b: e, r, bone: b, label: propLabel(it, b) });
+      cyls.push({ a, b: e, r, bone: b, label: propLabel(it, b), grip: !!it.grip });
     } else if (it.tube) {
       addTube(vert, idx, it.tube.pts, it.tube.r, c, b, 8, false);
     }
@@ -58,6 +58,7 @@ function propMesh(items, segs) {
 // 検査の結果に出す器具の名前
 function propLabel(it, b) {
   if (it.label) return it.label;
+  if (it.grip) return "握る棒";
   if (it.pad) return "座面";
   if (it.color === "floor") return "床";
   return { 15: "バー", 16: "ケーブル", 17: "ケーブル", 18: "右手の器具", 19: "左手の器具", 20: "ロープ", 21: "ロープ" }[b] || "器具";
@@ -128,16 +129,19 @@ function equipMats(solved) {
   const I = mat4FromRT(M3.I(), [0, 0, 0]);
   for (let i = 14; i < 22; i++) put(i, I);
   if (solved.extra.bar) put(15, mat4FromRT(M3.I(), solved.extra.bar));
-  (solved.cables || []).slice(0, 2).forEach(([a, b], k) => {
-    // 単位円柱 (0,0,0)→(0,1,0) を a→b に伸ばす
-    const d = V.sub(b, a);
-    const u = V.norm(V.perp(Math.abs(d[1]) / (V.len(d) || 1) < 0.9 ? [0, 1, 0] : [1, 0, 0], V.norm(d)));
-    const x = V.norm(V.cross(d, u)), z = V.norm(V.cross(x, d));
-    put(16 + k, [x[0], x[1], x[2], 0, d[0], d[1], d[2], 0, z[0], z[1], z[2], 0, a[0], a[1], a[2], 1]);
-  });
+  (solved.cables || []).slice(0, 2).forEach(([a, b], k) => put(16 + k, stretchMat(a, b)));
+  (solved.ropes || []).slice(0, 2).forEach((ab, k) => put(20 + k, stretchMat(ab[0], ab[1])));
   put(18, mat4FromRT(solved.bones[10].R, solved.bones[10].t));
   put(19, mat4FromRT(solved.bones[13].R, solved.bones[13].t));
   return out;
+}
+
+// 単位円柱 (0,0,0)→(0,1,0) を a→b に伸ばす行列
+function stretchMat(a, b) {
+  const d = V.sub(b, a);
+  const u = V.norm(V.perp(Math.abs(d[1]) / (V.len(d) || 1) < 0.9 ? [0, 1, 0] : [1, 0, 0], V.norm(d)));
+  const x = V.norm(V.cross(d, u)), z = V.norm(V.cross(x, d));
+  return [x[0], x[1], x[2], 0, d[0], d[1], d[2], 0, z[0], z[1], z[2], 0, a[0], a[1], a[2], 1];
 }
 
 // ---- 体の骨のデュアルクォータニオン（シェーダーに渡す並び）----
