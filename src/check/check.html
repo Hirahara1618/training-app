@@ -6,12 +6,30 @@
 <title>3D表示チェック</title>
 <link rel="icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="../app/app.css" data-inline>
+<style>
+  .rows { display: grid; gap: 6px; margin: 12px 0; }
+  .r { display: grid; grid-template-columns: 9em 1fr; gap: 8px; font-size: 14px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .r b { font-weight: 600; }
+  .r span { overflow-wrap: anywhere; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+  .ok { color: var(--good); }
+  .ng { color: var(--accent); }
+  #tri { width: 120px; height: 120px; border: 1px solid var(--line); border-radius: 8px; background: #000; }
+  .lead { font-size: 14px; color: var(--muted); }
+</style>
 </head>
 <body>
 <main>
-  <h1>3D表示チェック</h1>
-  <p>再構築中（段階7で実装）</p>
+  <h2 class="tab-title">3D表示チェック</h2>
+  <p class="lead">筋肉模型が表示されないときは、この画面のスクリーンショットを送ってください。</p>
+  <div id="rows" class="rows"></div>
+  <h3 class="sub">三角形の描画テスト</h3>
+  <canvas id="tri" width="120" height="120"></canvas>
+  <p id="tri-result"></p>
+  <div class="row-btns"><a class="button" href="model.html">筋肉模型を開く</a><a class="button" href="./">手帳に戻る</a><button id="again">もう一度調べる</button></div>
   <p class="ver">版 __VERSION__</p>
 </main>
+<script src="../app/util.js" data-inline></script>
+<script src="../model/renderer.js" data-inline></script>
+<script src="check.js" data-inline></script>
 </body>
 </html>

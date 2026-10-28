@@ -249,14 +249,23 @@ async function main() {
   $("#ver").textContent = `版 ${VERSION}`;
   buildSelect();
   let batches;
+  // 段階ごとの時間（実機のスクリーンショットから重い所が分かるように画面にも出す）
+  const timing = {};
+  let t0 = performance.now();
+  const lap = (k) => { const t = performance.now(); timing[k] = Math.round(t - t0); t0 = t; };
+  window.__timing = timing;
   try {
     const { buf, manifest } = await loadMesh();
+    lap("取得");
     setStatus("模型を準備中…");
     await new Promise((r) => setTimeout(r, 0)); // 文言を先に描かせる
+    t0 = performance.now();
     View.parts = decodeParts(buf, manifest);
     View.rig = buildRig(MESH_FILES.joints, manifest.zMin);
     buildHand(View.rig, View.parts);
+    lap("組立");
     buildSkin(View.rig, View.parts);
+    lap("重み");
     batches = packBatches(View.parts, anatomyColor, (p) => !!PELVIS_PARTS[p.id]);
     View.meta = batches.map((b) => ({ nv: b.nv, parts: b.parts }));
     View.baseFit = makeFit(View.parts, View.rig);
@@ -274,12 +283,13 @@ async function main() {
     return;
   }
   batches = null; // GPU に送ったので捨てる
+  lap("GPU");
   View.renderer = r;
   r.onLost(() => { cancelAnimationFrame(View.raf); showFailure("3D表示が止まりました（context lost）", ["端末の負荷が高すぎた可能性があります"]); });
   r.cam.yaw = VIEWS.oblique;
   setStatus("");
   const info = r.info();
-  $("#gl-info").textContent = `${info.type} · ${QUALITY === "mobile" ? "スマホ版" : "通常版"} · ${info.gpu}`;
+  $("#gl-info").textContent = `${info.type} · ${QUALITY === "mobile" ? "スマホ版" : "通常版"} · ${info.gpu} · ${Object.entries(timing).map(([k, v]) => `${k}${v}ms`).join(" ")}`;
   selectExercise(decodeURIComponent(location.hash.slice(1)));
   window.__ready = true;
 }
