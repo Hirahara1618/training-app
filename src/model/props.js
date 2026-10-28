@@ -40,11 +40,11 @@ function propMesh(items, segs) {
         }
         idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
       }
-      boxes.push({ c: ctr, h, rx: rx || 0, pad: !!it.pad, bone: b });
+      boxes.push({ c: ctr, h, rx: rx || 0, pad: !!it.pad, bone: b, label: propLabel(it, b) });
     } else if (it.cyl) {
       const { a, b: e, r } = it.cyl;
       addTube(vert, idx, [a, e], r, c, b, segs, true);
-      cyls.push({ a, b: e, r, bone: b });
+      cyls.push({ a, b: e, r, bone: b, label: propLabel(it, b) });
     } else if (it.tube) {
       addTube(vert, idx, it.tube.pts, it.tube.r, c, b, 8, false);
     }
@@ -53,6 +53,14 @@ function propMesh(items, segs) {
     pos: new Float32Array(pos), nrm: new Float32Array(nrm), col: new Uint8Array(col), bone: new Float32Array(bone),
     idx: new Uint16Array(idx), ni: idx.length, boxes, cyls,
   };
+}
+
+// 検査の結果に出す器具の名前
+function propLabel(it, b) {
+  if (it.label) return it.label;
+  if (it.pad) return "座面";
+  if (it.color === "floor") return "床";
+  return { 15: "バー", 16: "ケーブル", 17: "ケーブル", 18: "右手の器具", 19: "左手の器具", 20: "ロープ", 21: "ロープ" }[b] || "器具";
 }
 
 // 折れ線に沿った管（caps=true なら両端にふた）

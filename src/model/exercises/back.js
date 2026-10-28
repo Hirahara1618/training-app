@@ -12,7 +12,7 @@ defineExercise({
     const rig = fit.rig, gx = 0.24;
     // 前半はおもに膝を伸ばし、後半で股関節を伸ばす
     const u = ease(t), late = ease(clamp((t - 0.25) / 0.75, 0, 1));
-    const bar = [0, lerp(0.225, 0.765, u), lerp(0.125, 0.155, u)];
+    const bar = [0, lerp(0.225, 0.765, u), lerp(0.125, 0.172, u)];
     const th = lerp(1.12, 0.0, late * 0.85 + u * 0.15);
     const L = sideReach(rig, gx, 0.99);
     const dz = lerp(0.06, -0.075, u);               // 肩はバーより前 → 後ろ
