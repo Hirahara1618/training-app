@@ -64,11 +64,9 @@ defineExercise({
       { box: { c: [0, (top - 0.08) / 2, 0.07], s: [0.08, top - 0.08, 0.08] }, color: "frame" },
       // 太ももを押さえるパッド
       { cyl: { a: [-0.24, top + 0.19, 0.3], b: [0.24, top + 0.19, 0.3], r: 0.05 }, color: "pad" },
-      post(0, 0.62, top + 0.2, 0.07),
-      // 柱と上の梁・滑車
-      post(0, 0.78, 2.35, 0.1),
-      { box: { c: [0, 2.32, (barTopZ + 0.78) / 2], s: [0.08, 0.06, 0.78 - barTopZ + 0.1] }, color: "frame" },
-      { cyl: { a: [-0.03, 2.3, barTopZ], b: [0.03, 2.3, barTopZ], r: 0.05 }, color: "metal" },
+      tube([0, 0.05, 0.62], [0, top + 0.2, 0.62], 0.035), tube([-0.26, top + 0.19, 0.62], [0.26, top + 0.19, 0.62], 0.025),
+      // 前のケーブルタワーと、上の腕の先の滑車
+      ...cableTower([0, 2.3, barTopZ], 0.7),
       // ケーブルとバー（ゆるく曲がった幅広のバー）
       { cyl: { a: [0, 0, 0], b: [0, 1, 0], r: 0.004 }, bone: 16, color: "cable" },
       { tube: { pts: [[-0.6, 0.06, 0], [-0.45, 0.02, 0], [0, 0, 0], [0.45, 0.02, 0], [0.6, 0.06, 0]], r: 0.014 }, bone: 15, color: "metal" },
@@ -104,9 +102,10 @@ defineExercise({
       { box: { c: [0, top - 0.04, 0.07], s: [0.42, 0.08, 0.4] }, color: "pad", pad: true },
       { box: { c: [0, (top - 0.08) / 2, 0.07], s: [0.08, top - 0.08, 0.08] }, color: "frame" },
       { cyl: { a: [-0.24, top + 0.19, 0.3], b: [0.24, top + 0.19, 0.3], r: 0.05 }, color: "pad" },
-      post(0, 0.62, top + 0.2, 0.07),
-      post(0, -0.42, 2.3, 0.1),
-      { box: { c: [0, 2.25, -0.36], s: [0.4, 0.08, 0.14] }, color: "frame" },
+      tube([0, 0.05, 0.62], [0, top + 0.2, 0.62], 0.035), tube([-0.26, top + 0.19, 0.62], [0.26, top + 0.19, 0.62], 0.025),
+      post(-0.25, -0.42, 2.3, 0.07), post(0.25, -0.42, 2.3, 0.07), tube([-0.25, 2.25, -0.42], [0.25, 2.25, -0.42], 0.035),
+      { box: { c: [0, 2.25, -0.33], s: [0.36, 0.08, 0.16] }, color: "steel" },
+      ...floorFoot(-0.35, 0.35, -0.42), ...weightStack(0, -0.66, 1.9),
       ...leverItems(2, 0.022), ...dHandles(fit.rig),
     ];
   },
@@ -227,7 +226,8 @@ defineExercise({
   props: (fit) => [
     ...floorMat(),
     { box: { c: [0.2, 0.34, -0.2], s: [0.36, 0.06, 1.1] }, color: "pad", pad: true },
-    { box: { c: [0.2, 0.155, -0.2], s: [0.07, 0.31, 0.8] }, color: "frame" },
+    ...[-0.62, 0.22].flatMap((z) => [tube([0.2, 0.05, z], [0.2, 0.3, z], 0.03), ...floorFoot(0.02, 0.38, z)]),
+    { box: { c: [0.2, 0.29, -0.2], s: [0.24, 0.03, 1.0] }, color: "steel", nocheck: true },
     ...dumbbells(fit.rig, ["R"]),
   ],
 });
@@ -294,7 +294,7 @@ defineExercise({
   props: (fit) => [
     ...floorMat(),
     { cyl: { a: [0, 0, 0], b: [0, 1, 0], r: 0.025 }, bone: 16, color: "metal", label: "Tバー" },
-    { cyl: { a: [0, 0, 0], b: [0, 1, 0], r: 0.16 }, bone: 17, color: "plate", label: "プレート" },
+    { cyl: { a: [0, 0, 0], b: [0, 1, 0], r: 0.16 }, bone: 17, color: "plate", label: "プレート", touches: [16] },
     { box: { c: [0, 0.03, -0.95], s: [0.2, 0.06, 0.2] }, color: "frame" },
     ...vHandle(fit.rig),
   ],

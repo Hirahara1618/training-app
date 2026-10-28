@@ -140,8 +140,15 @@ function seatedBase(rig, o) {
   const hip = o.hip || SEATED_UP.hip;
   return { hip, trunk: o.th == null ? SEATED_UP.th : o.th, legs: seatedLegs(rig, hip, o.legs) };
 }
+// マシンの枠：後ろの2本柱と上の梁、床の足、後ろにウエイトスタック
 function machineFrame(z, h) {
-  return [post(-0.42, z, h || 1.9), post(0.42, z, h || 1.9), { box: { c: [0, (h || 1.9) - 0.03, z], s: [0.9, 0.06, 0.06] }, color: "frame" }];
+  h = h || 1.9;
+  const back = z + Math.sign(z || -1) * 0.25;
+  return [
+    post(-0.42, z, h), post(0.42, z, h), tube([-0.42, h - 0.03, z], [0.42, h - 0.03, z], 0.03),
+    ...floorFoot(-0.5, 0.5, z), ...weightStack(0, back, h - 0.25),
+    tube([-0.2, h - 0.03, z], [-0.2, h - 0.03, back], 0.025), tube([0.2, h - 0.03, z], [0.2, h - 0.03, back], 0.025),
+  ];
 }
 
 // チェストプレス（マシン）：座って前へ押す。レバーとハンドル

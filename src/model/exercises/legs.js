@@ -123,7 +123,23 @@ function legPressProps(fit) {
   return items;
 }
 // 足の裏の台（骨15、足首の位置が原点）。足の裏が +z を向くとき
-function footPlate(z) { return [{ box: { c: [0, 0.05, z || 0.075], s: [0.62, 0.55, 0.03] }, bone: 15, color: "frame", label: "足の台" }]; }
+function footPlate(z) {
+  z = z || 0.075;
+  return [
+    { box: { c: [0, 0.05, z], s: [0.62, 0.55, 0.03] }, bone: 15, color: "steel", label: "足の台" },
+    ...[-0.3, 0.3].map((x) => ({ cyl: { a: [x, -0.22, z + 0.02], b: [x, -0.33, z + 0.02], r: 0.025 }, bone: 15, color: "steel", touches: [14] })),
+    { cyl: { a: [-0.3, -0.33, z + 0.02], b: [0.3, -0.33, z + 0.02], r: 0.03 }, bone: 15, color: "steel", touches: [14] },
+  ];
+}
+// レッグプレスのレール（足の台の台車が走る）と前のウエイトスタック
+function legPressRails(y, z0, z1) {
+  return [
+    ...[-0.3, 0.3].map((x) => tube([x, y, z0], [x, y, z1], 0.025)),
+    ...[z0, z1].map((z) => tube([-0.3, y, z], [0.3, y, z], 0.025)),
+    ...[z0, z1].flatMap((z) => [-0.3, 0.3].map((x) => tube([x, 0.04, z], [x, y, z], 0.025))),
+    ...weightStack(0, z1 + 0.25, 1.3),
+  ];
+}
 
 defineExercise({
   id: "c_legpress",
@@ -136,7 +152,7 @@ defineExercise({
     const leg = { ankle: A, x: 0.13, abd: lerp(0.3, 0.12, e), foot: -Math.PI / 2 };
     return Object.assign(legPressBase(fit.rig), { legs: { R: leg, L: leg }, bar: [0, A[1], A[0]] }, legPressHands());
   },
-  props: (fit) => [...legPressProps(fit), ...footPlate()],
+  props: (fit) => [...legPressProps(fit), ...footPlate(), ...legPressRails(0.33, 0.38, 1.05)],
 });
 
 // アングルド・レッグ・プレス：45°の台を押し上げる
@@ -304,7 +320,8 @@ defineExercise({
     return [
       ...floorMat(),
       padOn(fit.bench, [0, top, 0.12], [0.36, 0.08, 1.0]),
-      { box: { c: [0, (top - 0.08) / 2, 0.12], s: [0.1, top - 0.08, 0.8] }, color: "frame" },
+      ...[-0.25, 0.5].flatMap((z) => [tube([0, 0.05, z], [0, top - 0.09, z], 0.03), ...floorFoot(-0.24, 0.24, z)]),
+      { box: { c: [0, top - 0.1, 0.12], s: [0.26, 0.03, 0.9] }, color: "steel", nocheck: true },
       { cyl: { a: [-0.24, 0, 0], b: [0.24, 0, 0], r: 0.045 }, bone: 15, color: "pad", label: "ローラー" },
       ...leverItems(1, 0.025),
       { cyl: { a: [-0.3, PRONE.hip[1] - 0.12, PRONE.hip[0] + 0.72], b: [0.3, PRONE.hip[1] - 0.12, PRONE.hip[0] + 0.72], r: 0.016 }, color: "metal", grip: true },
@@ -372,7 +389,9 @@ defineExercise({
   props: () => [
     ...floorMat(),
     { box: { c: [0, THRUST.edge[1] - 0.04, THRUST.edge[0] - 0.17], s: [1.1, 0.08, 0.36] }, color: "pad", pad: true },
-    { box: { c: [0, (THRUST.edge[1] - 0.08) / 2, THRUST.edge[0] - 0.17], s: [0.9, THRUST.edge[1] - 0.08, 0.2] }, color: "frame" },
+    ...[-0.42, 0.42].flatMap((x) => [tube([x, 0.05, THRUST.edge[0] - 0.17], [x, THRUST.edge[1] - 0.09, THRUST.edge[0] - 0.17], 0.03),
+      tube([x, 0.035, THRUST.edge[0] - 0.33], [x, 0.035, THRUST.edge[0] - 0.01], 0.025)]),
+    tube([-0.42, THRUST.edge[1] - 0.1, THRUST.edge[0] - 0.17], [0.42, THRUST.edge[1] - 0.1, THRUST.edge[0] - 0.17], 0.025),
     ...barbell(),
   ],
 });

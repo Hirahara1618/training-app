@@ -56,8 +56,8 @@ try {
   console.log(`検査: ${ids.length}種目 · ${Q === "lo" ? "スマホ版" : "通常版"}メッシュ · ${N}分割`);
   for (const id of ids) {
     const t0 = Date.now();
-    const r = await page.evaluate(([i, n]) => ({ check: __check(i, n), self: __self(i, n), smooth: __smooth(i, n) }), [id, N]);
-    const ok = r.check.ok && r.self.ok && r.smooth.ok;
+    const r = await page.evaluate(([i, n]) => ({ check: __check(i, n), equip: __equip(i, Math.min(n, 50)), self: __self(i, n), smooth: __smooth(i, n) }), [id, N]);
+    const ok = r.check.ok && r.equip.ok && r.self.ok && r.smooth.ok;
     if (!ok) failed++;
     console.log(`\n${ok ? "OK" : "NG"}  ${id}  (${((Date.now() - t0) / 1000).toFixed(1)}秒)`);
     const show = (title, res) => {
@@ -67,6 +67,7 @@ try {
       for (const x of (bad.length ? bad : top)) console.log(`    ${x.ok ? "  " : "✗ "}${x.key.padEnd(16, "　")} ${cm(x.depth)} / 基準 ${cm(x.limit)}  t=${x.t.toFixed(2)}`);
     };
     show("器具へのめり込み", r.check);
+    show("器具同士のめり込み", r.equip);
     show("腕の重なり", r.self);
     const jumps = Object.entries(r.smooth.bones).filter(([, v]) => v.jumps.length);
     console.log(`  動きの跳ね: ${jumps.length ? "" : "なし"}`);

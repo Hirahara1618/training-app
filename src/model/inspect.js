@@ -56,13 +56,13 @@ function worldPrims(props, mats) {
   for (const bx of props.boxes) {
     const c = applyMat4(M(bx.bone), bx.c);
     const r = Math.hypot(...bx.h);
-    out.push({ kind: "box", c, h: bx.h, cs: Math.cos(bx.rx), sn: Math.sin(bx.rx), pad: bx.pad, bone: bx.bone, label: bx.label, grip: bx.grip,
+    out.push({ kind: "box", c, h: bx.h, cs: Math.cos(bx.rx), sn: Math.sin(bx.rx), pad: bx.pad, bone: bx.bone, label: bx.label, grip: bx.grip, nocheck: bx.nocheck, touches: bx.touches,
       lo: V.sub(c, [r, r, r]), hi: V.add(c, [r, r, r]) });
   }
   for (const cy of props.cyls) {
     const a = applyMat4(M(cy.bone), cy.a), b = applyMat4(M(cy.bone), cy.b);
     const ab = V.sub(b, a);
-    out.push({ kind: "cyl", a, ab, L2: V.dot(ab, ab), r: cy.r, bone: cy.bone, label: cy.label, grip: cy.grip,
+    out.push({ kind: "cyl", a, ab, L2: V.dot(ab, ab), r: cy.r, bone: cy.bone, label: cy.label, grip: cy.grip, nocheck: cy.nocheck, touches: cy.touches,
       lo: [Math.min(a[0], b[0]) - cy.r, Math.min(a[1], b[1]) - cy.r, Math.min(a[2], b[2]) - cy.r],
       hi: [Math.max(a[0], b[0]) + cy.r, Math.max(a[1], b[1]) + cy.r, Math.max(a[2], b[2]) + cy.r] });
   }
@@ -105,7 +105,7 @@ function inspectCheck(id, n) {
   const res = {};
   for (const t of framesOf(n)) {
     const s = solveAt(t);
-    const prims = worldPrims(View.props, equipMats(s));
+    const prims = worldPrims(View.props, equipMats(s)).filter((p) => !p.nocheck);
     const holding = s.grip > 0;
     skinFast(View.parts, bodyDQ(s), s.gripLR, (p) => !PELVIS_PARTS[p.id], (p, i, x, y, z) => {
       const slot = p.bones[i * 3];
@@ -142,6 +142,39 @@ function inspectCheck(id, n) {
           if (heldBy && (slot === 10 || slot === 13 || slot === 9 || slot === 12)) continue;
           const d = near.d + sp.extra;
           const key = `${REGION_NAMES[slot]}→${pr.label}`;
+          if (!res[key] || d > res[key].depth) res[key] = { depth: d, t, limit: LIMIT.other };
+        }
+      }
+    }
+  }
+  return summarize(res);
+}
+
+// 器具同士のめり込み：動く器具（骨15〜21）の上の点が、ほかの器具の中に入っていないか。
+// ケーブル・ロープ・レバーの両端（滑車やハンドルの中へ入るのが正しい）と、同じ骨の器具どうしは除く
+function inspectEquip(id, n) {
+  n = n || 100;
+  setPlaying(false);
+  selectExercise(id);
+  if (!View.ex) return { error: `種目がありません: ${id}` };
+  View.state = {};
+  const res = {};
+  for (const t of framesOf(n)) {
+    const s = solveAt(t);
+    const prims = worldPrims(View.props, equipMats(s)).filter((p) => !p.nocheck);
+    for (const a of prims) {
+      if (a.bone === 14) continue;
+      const stretch = a.kind === "cyl" && a.bone >= 16 && a.bone !== 18 && a.bone !== 19;
+      for (const sp of samplePrim(a)) {
+        if (stretch) {
+          const u = V.dot(V.sub(sp.q, a.a), a.ab) / a.L2;
+          if (u < 0.12 || u > 0.88) continue;
+        }
+        for (const b of prims) {
+          if (b === a || b.bone === a.bone || (a.touches || []).includes(b.bone) || (b.touches || []).includes(a.bone)) continue;
+          const d = penetration(b, sp.q[0], sp.q[1], sp.q[2]);
+          if (d <= 0.002) continue;
+          const key = `${a.label}→${b.label}`;
           if (!res[key] || d > res[key].depth) res[key] = { depth: d, t, limit: LIMIT.other };
         }
       }
@@ -318,3 +351,4 @@ function summarize(res) {
 window.__check = inspectCheck;
 window.__self = inspectSelf;
 window.__smooth = inspectSmooth;
+window.__equip = inspectEquip;

@@ -47,19 +47,44 @@ function decodeParts(buf, manifest) {
   return out;
 }
 
-// 顔の細かい筋と頭蓋骨の代わりの、なめらかな頭（楕円体）。manifest.head は OBJ 座標の mm
+// 顔の細かい筋と頭蓋骨の代わりの、服屋のマネキンのような簡易的な頭。manifest.head は OBJ 座標の mm（外形の箱）。
+// 楕円体を土台に、あごへ向けて細くし、鼻・眉・唇・あごのふくらみと目のくぼみを、なめらかな凹凸で付ける
+function mannequinHead(du, df, dw) {
+  // du: 左右, df: 前(+)後, dw: 上下（単位方向）。返り値は外形の箱で正規化した座標 [左右, 前, 上]
+  // 後頭部〜頭頂の大きな楕円体と、前下の顔・あごの楕円体を、外側をなめらかに取ってつなぐ
+  const ray = (c, r) => {
+    const d = [du / r[0], df / r[1], dw / r[2]], q = [c[0] / r[0], c[1] / r[1], c[2] / r[2]];
+    const A = d[0] * d[0] + d[1] * d[1] + d[2] * d[2], B = d[0] * q[0] + d[1] * q[1] + d[2] * q[2];
+    const C = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] - 1, D = B * B - A * C;
+    return D > 0 ? (B + Math.sqrt(D)) / A : 0;
+  };
+  const r1 = ray([0, -0.12, 0.2], [0.98, 0.86, 0.8]);
+  const r2 = ray([0, 0.22, -0.32], [0.6, 0.66, 0.66]);
+  let r = Math.pow(r1 ** 8 + r2 ** 8, 1 / 8);
+  // 顔の凹凸（前側だけ）：鼻、眉、目のくぼみ、唇、あご
+  const g = (x, s) => Math.exp(-(x * x) / (s * s));
+  const fr = Math.max(0, df);
+  r += 0.12 * g(du, 0.07) * g(dw + 0.12, 0.13) * fr ** 4;
+  r += 0.045 * g(dw - 0.08, 0.06) * g(du, 0.42) * fr ** 2;
+  r -= 0.06 * g(Math.abs(du) - 0.24, 0.09) * g(dw + 0.02, 0.07) * fr ** 2;
+  r += 0.035 * g(du, 0.14) * g(dw + 0.42, 0.05) * fr ** 2;
+  r += 0.04 * g(du, 0.16) * g(dw + 0.62, 0.07) * fr ** 2;
+  return [du * r, df * r, dw * r];
+}
 function headPart(manifest) {
   const h = manifest.head;
   if (!h) return null;
-  const SEG = 28, RING = 18;
+  const SEG = 48, RING = 32;
   const pos = [], idx = [];
   for (let i = 0; i <= RING; i++) {
     const th = (i / RING) * Math.PI;
     for (let j = 0; j < SEG; j++) {
       const ph = (j / SEG) * Math.PI * 2;
-      const x = h.c[0] + h.r[0] * Math.sin(th) * Math.cos(ph);
-      const y = h.c[1] + h.r[1] * Math.sin(th) * Math.sin(ph);
-      const z = h.c[2] + h.r[2] * Math.cos(th);
+      // 前は OBJ の −y
+      const [u, f, w] = mannequinHead(Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph), Math.cos(th));
+      const x = h.c[0] + h.r[0] * u;
+      const y = h.c[1] - h.r[1] * f;
+      const z = h.c[2] + h.r[2] * w;
       pos.push(x / 1000, (z - manifest.zMin) / 1000, -y / 1000);
     }
   }

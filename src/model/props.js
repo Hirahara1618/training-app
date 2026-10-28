@@ -14,6 +14,9 @@ const PROP_COLORS = {
   frame: [0.36, 0.38, 0.42],
   metal: [0.68, 0.7, 0.73],
   plate: [0.12, 0.12, 0.14],
+  plateface: [0.2, 0.2, 0.23],
+  rubber: [0.1, 0.1, 0.11],
+  steel: [0.42, 0.44, 0.48],
   cable: [0.08, 0.08, 0.09],
   path: [0.98, 0.78, 0.25],
 };
@@ -26,25 +29,41 @@ function propMesh(items, segs) {
 
   for (const it of items) {
     const c = PROP_COLORS[it.color] || it.color || PROP_COLORS.frame;
+    // 見た目に出さない当たり判定用の器具
+    if (it.hidden) {
+      const hb = it.bone == null ? 14 : it.bone;
+      if (it.cyl) cyls.push({ a: it.cyl.a, b: it.cyl.b, r: it.cyl.r, bone: hb, label: propLabel(it, hb), grip: !!it.grip, touches: it.touches || [] });
+      continue;
+    }
     const b = it.bone == null ? 14 : it.bone;
     if (it.box) {
       const { c: ctr, s, rx } = it.box;
       const R = M3.rx(rx || 0), h = V.scale(s, 0.5);
+      // パッドは長辺の角を丸く見せる（中心の箱を細くし、両側に円柱）。当たり判定は元の箱
+      const round = it.pad && it.round !== false && s[0] > s[1] * 1.5;
+      const rr = round ? s[1] / 2 : 0;
+      if (round) {
+        for (const sg of [-1, 1]) {
+          const a = V.add(ctr, M3.apply(R, [sg * (h[0] - rr), 0, -h[2]])), e = V.add(ctr, M3.apply(R, [sg * (h[0] - rr), 0, h[2]]));
+          addTube(vert, idx, [a, e], rr, c, b, segs, true);
+        }
+      }
+      const hd = round ? [h[0] - rr, h[1], h[2]] : h;
       const faces = [[[1, 0, 0], [0, 1, 0], [0, 0, 1]], [[-1, 0, 0], [0, 0, 1], [0, 1, 0]], [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
         [[0, -1, 0], [1, 0, 0], [0, 0, 1]], [[0, 0, 1], [1, 0, 0], [0, 1, 0]], [[0, 0, -1], [0, 1, 0], [1, 0, 0]]];
       for (const [n, u, w] of faces) {
         const base = pos.length / 3;
         for (const [su, sw] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-          const l = [0, 1, 2].map((k) => n[k] * h[k] + u[k] * su * h[k] + w[k] * sw * h[k]);
+          const l = [0, 1, 2].map((k) => n[k] * hd[k] + u[k] * su * hd[k] + w[k] * sw * hd[k]);
           vert(V.add(ctr, M3.apply(R, l)), M3.apply(R, n), c, b);
         }
         idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
       }
-      boxes.push({ c: ctr, h, rx: rx || 0, pad: !!it.pad, bone: b, label: propLabel(it, b), grip: !!it.grip });
+      boxes.push({ c: ctr, h, rx: rx || 0, pad: !!it.pad, bone: b, label: propLabel(it, b), grip: !!it.grip, nocheck: !!it.nocheck, touches: it.touches || [] });
     } else if (it.cyl) {
       const { a, b: e, r } = it.cyl;
       addTube(vert, idx, [a, e], r, c, b, segs, true);
-      cyls.push({ a, b: e, r, bone: b, label: propLabel(it, b), grip: !!it.grip });
+      cyls.push({ a, b: e, r, bone: b, label: propLabel(it, b), grip: !!it.grip, nocheck: !!it.nocheck, touches: it.touches || [] });
     } else if (it.tube) {
       addTube(vert, idx, it.tube.pts, it.tube.r, c, b, 8, false);
     }
@@ -108,9 +127,21 @@ function barbell() {
   for (const s of [-1, 1]) {
     items.push({ cyl: { a: [s * 0.64, 0, 0], b: [s * 1.1, 0, 0], r: 0.025 }, bone: 15, color: "metal" });
     items.push({ cyl: { a: [s * 0.64, 0, 0], b: [s * 0.665, 0, 0], r: 0.038 }, bone: 15, color: "metal" });
-    items.push({ cyl: { a: [s * PLATE_X[0], 0, 0], b: [s * PLATE_X[1], 0, 0], r: 0.225 }, bone: 15, color: "plate" });
+    items.push(...plateItems(s, PLATE_X[0], PLATE_X[1], 0.225, 15));
   }
   return items;
+}
+
+// プレート1枚：外周の縁（厚い輪）、薄い面、中心のハブ。x0〜x1 はバーの中心からの距離、s は左右
+function plateItems(s, x0, x1, r, bone) {
+  const w = x1 - x0, m = (x0 + x1) / 2;
+  return [
+    { cyl: { a: [s * x0, 0, 0], b: [s * x1, 0, 0], r }, bone, color: "plate", nocheck: true },
+    { cyl: { a: [s * (m - w * 0.7), 0, 0], b: [s * (m + w * 0.7), 0, 0], r: r * 0.86 }, bone, color: "plateface", nocheck: true },
+    { cyl: { a: [s * (x0 - 0.006), 0, 0], b: [s * (x1 + 0.006), 0, 0], r: r * 0.3 }, bone, color: "metal", nocheck: true },
+    // 当たり判定用（見た目には出さない）
+    { cyl: { a: [s * x0, 0, 0], b: [s * x1, 0, 0], r }, bone, hidden: true },
+  ];
 }
 
 function floorMat() { return [{ box: { c: [0, -0.01, 0.1], s: [1.8, 0.02, 2.6] }, color: "floor" }]; }

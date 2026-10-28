@@ -57,11 +57,10 @@ async function loadMesh() {
 
 // ?hl=FMA13336,FMA13377 で指定パーツを青に（検査用）
 const HIGHLIGHT = new Set((params.get("hl") || "").split(",").filter(Boolean));
-// 頭（楕円体）の色：筋や骨と紛れない、落ち着いた肌色寄りの灰
-const HEAD_COLOR = [0.7, 0.66, 0.62];
+// 頭（マネキン）は体になじむ色：解剖模型では筋と同じ、種目では「ほかの筋」と同じ灰
 function anatomyColor(p) {
   if (HIGHLIGHT.has(p.id)) return [0.24, 0.45, 0.77];
-  if (p.r === "head") return HEAD_COLOR;
+  if (p.r === "head") return V.scale(ANATOMY_COLORS.m, 1.08);
   return ANATOMY_COLORS[p.c] || ANATOMY_COLORS.m;
 }
 function roleColor(def) {
@@ -69,7 +68,7 @@ function roleColor(def) {
   for (const k of ["support", "sub", "main"]) for (const r of def.roles[k] || []) roleOf[r] = k;
   return (p) => {
     if (HIGHLIGHT.has(p.id)) return [0.95, 0.8, 0.2];
-    if (p.r === "head") return HEAD_COLOR;
+    if (p.r === "head") return ROLE_COLORS.other;
     if (p.c === "b") return ROLE_COLORS.bone;
     const r = p.c === "t" ? TISSUE_ROLE[p.id] : p.r;
     if (roleOf[r]) return ROLE_COLORS[roleOf[r]];
