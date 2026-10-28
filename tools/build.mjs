@@ -7,6 +7,7 @@
 //     → ファイルを base64 にして埋め込む（模型のメッシュ用。パスはリポジトリのルートから）
 // どのファイルでも __VERSION__ は版の文字列に置き換える。
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,10 +59,27 @@ fs.rmSync(DIST, { recursive: true, force: true });
 fs.mkdirSync(DIST, { recursive: true });
 
 const out = [];
+
+// 模型のメッシュ：中身のハッシュを名前に入れて dist/data/ に置く。
+// 中身が変わらなければ名前も変わらないので、アプリの版が上がっても再ダウンロードしない。
+const MESH = path.join(ROOT, "data/bodyparts3d");
+const meshFiles = {};
+for (const [key, suffix] of [["normal", ""], ["mobile", "-mobile"]]) {
+  const bin = fs.readFileSync(path.join(MESH, `body${suffix}.bin`));
+  const hash = crypto.createHash("sha256").update(bin).digest("hex").slice(0, 10);
+  const rel = `data/body${suffix}.${hash}.bin`;
+  out.push(write(rel, bin));
+  meshFiles[key] = { bin: rel, manifest: JSON.parse(read(path.join(MESH, `manifest${suffix}.json`))) };
+}
+meshFiles.joints = JSON.parse(read(path.join(MESH, "joints.json")));
+out.push(write("data/README.md", read(path.join(MESH, "README.md"))));
+const meshList = [meshFiles.normal.bin, meshFiles.mobile.bin];
+
 out.push(write("index.html", bundleHtml(path.join(SRC, "app/index.html"))));
-out.push(write("model.html", bundleHtml(path.join(SRC, "model/model.html"))));
+out.push(write("model.html", bundleHtml(path.join(SRC, "model/model.html"))
+  .replace("/*__MESH_FILES__*/", `const MESH_FILES = ${JSON.stringify(meshFiles)};`)));
 out.push(write("check.html", bundleHtml(path.join(SRC, "check/check.html"))));
-out.push(write("sw.js", stamped(read(path.join(SRC, "pwa/sw.js")))));
+out.push(write("sw.js", stamped(read(path.join(SRC, "pwa/sw.js"))).replace("__MESH_FILES__", JSON.stringify(meshList))));
 out.push(write("manifest.webmanifest", read(path.join(SRC, "pwa/manifest.webmanifest"))));
 for (const f of fs.readdirSync(path.join(SRC, "pwa/icons"))) {
   out.push(write(`icons/${f}`, fs.readFileSync(path.join(SRC, "pwa/icons", f))));

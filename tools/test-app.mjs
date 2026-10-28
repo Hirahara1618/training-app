@@ -18,7 +18,10 @@ fs.mkdirSync(OUT, { recursive: true });
 const server = spawn(process.execPath, [path.join(ROOT, "tools/serve.mjs"), path.join(ROOT, "dist"), String(PORT)], { stdio: "ignore" });
 await new Promise((r) => setTimeout(r, 500));
 
-const browser = await chromium.launch({ channel: "chrome", headless: true });
+const browser = await chromium.launch({
+  channel: "chrome", headless: true,
+  args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+});
 const errors = [];
 let step = 0;
 const ok = (msg) => console.log(`  ok  ${++step}. ${msg}`);
@@ -191,6 +194,10 @@ try {
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload(); // SW の管理下で開き直してキャッシュを満たす
   await page.waitForFunction(() => navigator.serviceWorker.controller);
+  // 模型を一度開く（メッシュがキャッシュに入る）
+  await page.goto(URL + "model.html?app=1#bench");
+  await page.waitForFunction(() => window.__ready, null, { timeout: 60000 });
+  await page.goto(URL);
   await ctx.setOffline(true);
   await page.reload();
   await page.waitForSelector(".tabs");
@@ -200,9 +207,13 @@ try {
   await page.click("#bw-form button[type=submit]");
   assert.equal(Object.keys((await data(page)).bodyweight).length, 2);
   await page.goto(URL + "model.html?app=1#bench");
-  assert.match(await page.textContent("body"), /筋肉模型/);
+  await page.waitForFunction(() => window.__ready || !document.querySelector("#fail").hidden, null, { timeout: 60000 });
+  assert.equal(await page.evaluate(() => window.__ready), true, `オフラインで模型が出ない: ${await page.textContent("#fail")}`);
+  assert.equal(await page.isVisible(".back"), true, "?app=1 で「手帳に戻る」が出る");
+  await page.click(".back");
+  await page.waitForSelector(".tabs");
   await ctx.setOffline(false);
-  ok("機内モード（オフライン）で開いて記録できる・模型ページもキャッシュから開く");
+  ok("機内モード（オフライン）で開いて記録できる・模型もキャッシュから表示・手帳に戻れる");
 
   // ---- 8. 既存のデータを上書きしない
   const keep = await newPage();

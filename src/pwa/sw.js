@@ -19,12 +19,22 @@ self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
 });
 
+// 模型のメッシュ（名前に中身のハッシュ入り）は版をまたいで残す別のキャッシュに置く。
+// 最初に模型を開いたときに入る（スマホは軽量版だけを取るので、事前には取らない）
+const MESH_CACHE = "tlog-mesh";
+const MESH_FILES = __MESH_FILES__;
+
 self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("tlog-") && k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => k.startsWith("tlog-") && k !== CACHE && k !== MESH_CACHE).map((k) => caches.delete(k)));
+    // 今の版で使わないメッシュを消す
+    const mesh = await caches.open(MESH_CACHE);
+    for (const req of await mesh.keys()) {
+      if (!MESH_FILES.some((f) => new URL(f, self.registration.scope).href === req.url)) await mesh.delete(req);
+    }
+    await self.clients.claim();
+  })());
 });
 
 function isHtml(req) {
@@ -45,8 +55,8 @@ async function networkFirst(req) {
   }
 }
 
-async function cacheFirst(req) {
-  const cache = await caches.open(CACHE);
+async function cacheFirst(req, name) {
+  const cache = await caches.open(name || CACHE);
   const hit = await cache.match(req);
   if (hit) return hit;
   const res = await fetch(req);
@@ -62,5 +72,6 @@ self.addEventListener("fetch", (e) => {
   const sameOrigin = url.origin === self.location.origin;
   const fonts = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
   if (!sameOrigin && !fonts) return;
+  if (sameOrigin && url.pathname.endsWith(".bin")) { e.respondWith(cacheFirst(req, MESH_CACHE)); return; }
   e.respondWith(sameOrigin && isHtml(req) ? networkFirst(req) : cacheFirst(req));
 });

@@ -3,17 +3,42 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c2025">
 <title>筋肉模型</title>
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="../app/app.css" data-inline>
+<link rel="stylesheet" href="model.css" data-inline>
 </head>
 <body>
-<main>
+<div id="stage"></div>
+<header class="top">
+  <a class="button back" href="./">← 手帳に戻る</a>
   <h1>筋肉模型</h1>
-  <p>再構築中（段階3以降で実装）</p>
-  <p class="ver">版 __VERSION__</p>
-  <p class="ver">BodyParts3D, Copyright© The Database Center for Life Science licensed by CC Attribution-Share Alike 2.1 Japan.</p>
-</main>
-<script src="../shared/catalog.js" data-inline></script>
+</header>
+<div id="status">読み込み中…</div>
+<footer class="bottom">
+  <div id="views">
+    <button data-view="front">正面</button>
+    <button data-view="oblique">斜め</button>
+    <button data-view="side">横</button>
+    <button data-view="back">背面</button>
+  </div>
+  <div class="credit">
+    BodyParts3D, Copyright© The Database Center for Life Science licensed by CC Attribution-Share Alike 2.1 Japan.
+    加工したデータも同じライセンス（<a href="https://creativecommons.org/licenses/by-sa/2.1/jp/" rel="noopener">CC BY-SA 2.1 JP</a>）で公開しています。
+    <br><span id="ver"></span> · <span id="gl-info"></span>
+  </div>
+</footer>
+<div id="fail" hidden>
+  <h2 id="fail-title"></h2>
+  <p>この画面のスクリーンショットを送ってください。</p>
+  <pre id="fail-log"></pre>
+  <button id="reload">読み込み直す</button>
+</div>
+
+<script>/*__MESH_FILES__*/</script>
+<script src="../app/util.js" data-inline></script>
+<script src="mesh.js" data-inline></script>
+<script src="renderer.js" data-inline></script>
+<script src="model.js" data-inline></script>
 </body>
 </html>
