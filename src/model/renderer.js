@@ -6,24 +6,103 @@
 // - webgl2 → webgl2（AAなし）→ webgl → experimental-webgl の順に、毎回新しい canvas で試す
 // - createShader が null なら失敗として扱う
 // - スマホでは描画解像度の倍率を1.5まで、アンチエイリアスなし
+// - uniform 配列はループでなく直接添字で参照する
 
 const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
   || matchMedia("(pointer: coarse)").matches;
 
-const VS = `
+const MAX_PADS = 6;
+const PAD_DEPTH = 0.03; // 座面からこの深さまで入った頂点を面に押し出す
+
+// 体：骨2本をデュアルクォータニオンで混ぜる（aExtra.x=1 の頂点は線形で混ぜる）
+const VS_BODY = `
 attribute vec3 aPos;
 attribute vec3 aNrm;
 attribute vec3 aCol;
+attribute vec3 aBone;   // DQ の番号0, 番号1, 番号0の重み
+attribute vec2 aExtra;  // 線形で混ぜるか, 握りの対象か
+attribute vec3 aP2;     // 握ったときの位置
+attribute vec3 aN2;     // 握ったときの法線
 uniform mat4 uViewProj;
+uniform vec4 uDQ[30];
+uniform vec2 uGrip;
+uniform vec4 uPadC[${MAX_PADS}];  // 中心xyz, cos(x軸回転)
+uniform vec4 uPadS[${MAX_PADS}];  // 半分の大きさxyz（x<=0 で無効）, sin(x軸回転)
+varying vec3 vNrm;
+varying vec3 vCol;
+varying vec3 vPos;
+
+vec3 dqPoint(vec4 r, vec4 d, vec3 p) {
+  return p + 2.0 * cross(r.xyz, cross(r.xyz, p) + r.w * p) + 2.0 * (r.w * d.xyz - d.w * r.xyz + cross(r.xyz, d.xyz));
+}
+vec3 qRot(vec4 r, vec3 v) { return v + 2.0 * cross(r.xyz, cross(r.xyz, v) + r.w * v); }
+vec3 pad(vec3 P, vec4 c, vec4 s) {
+  if (s.x <= 0.0) return P;
+  vec3 q = P - c.xyz;
+  vec3 l = vec3(q.x, c.w * q.y + s.w * q.z, -s.w * q.y + c.w * q.z);
+  if (abs(l.x) < s.x && abs(l.z) < s.z && l.y < s.y && l.y > s.y - ${PAD_DEPTH.toFixed(3)}) {
+    l.y = s.y;
+    return c.xyz + vec3(l.x, c.w * l.y - s.w * l.z, s.w * l.y + c.w * l.z);
+  }
+  return P;
+}
+void main() {
+  int i0 = int(aBone.x + 0.5);
+  int i1 = int(aBone.y + 0.5);
+  float w0 = aBone.z;
+  float w1 = 1.0 - w0;
+  vec4 r0 = uDQ[i0 * 2];
+  vec4 d0 = uDQ[i0 * 2 + 1];
+  vec4 r1 = uDQ[i1 * 2];
+  vec4 d1 = uDQ[i1 * 2 + 1];
+  float g = aExtra.y * (i0 == 10 ? uGrip.x : uGrip.y);
+  vec3 p = mix(aPos, aP2, g);
+  vec3 n0 = normalize(mix(aNrm, aN2, g));
+  vec3 P;
+  vec3 N;
+  if (aExtra.x > 0.5) {
+    P = w0 * dqPoint(r0, d0, p) + w1 * dqPoint(r1, d1, p);
+    N = w0 * qRot(r0, n0) + w1 * qRot(r1, n0);
+  } else {
+    if (dot(r0, r1) < 0.0) { r1 = -r1; d1 = -d1; }
+    vec4 r = w0 * r0 + w1 * r1;
+    vec4 d = w0 * d0 + w1 * d1;
+    float l = length(r);
+    r /= l; d /= l;
+    P = dqPoint(r, d, p);
+    N = qRot(r, n0);
+  }
+  P = pad(P, uPadC[0], uPadS[0]);
+  P = pad(P, uPadC[1], uPadS[1]);
+  P = pad(P, uPadC[2], uPadS[2]);
+  P = pad(P, uPadC[3], uPadS[3]);
+  P = pad(P, uPadC[4], uPadS[4]);
+  P = pad(P, uPadC[5], uPadS[5]);
+  vNrm = N;
+  vCol = aCol;
+  vPos = P;
+  gl_Position = uViewProj * vec4(P, 1.0);
+}`;
+
+// 器具：骨ごとの 4×4 行列（ケーブルは伸び縮みするので行列）
+const VS_PROPS = `
+attribute vec3 aPos;
+attribute vec3 aNrm;
+attribute vec3 aCol;
+attribute float aBone;
+uniform mat4 uViewProj;
+uniform mat4 uM[8];
 varying vec3 vNrm;
 varying vec3 vCol;
 varying vec3 vPos;
 void main() {
-  vNrm = aNrm;
+  mat4 m = uM[int(aBone + 0.5) - 14];
+  vec4 P = m * vec4(aPos, 1.0);
+  vNrm = (m * vec4(aNrm, 0.0)).xyz;
   vCol = aCol;
-  vPos = aPos;
-  gl_Position = uViewProj * vec4(aPos, 1.0);
+  vPos = P.xyz;
+  gl_Position = uViewProj * P;
 }`;
 
 const FS = `
@@ -72,6 +151,10 @@ function mat4Mul(a, b) {
   }
   return o;
 }
+// 3×3（行優先）と平行移動から列優先の 4×4
+function mat4FromRT(R, t) {
+  return [R[0], R[3], R[6], 0, R[1], R[4], R[7], 0, R[2], R[5], R[8], 0, t[0], t[1], t[2], 1];
+}
 
 // ---- コンテキスト ----
 // 試した内容を残す（失敗時に画面へ出して、利用者のスクリーンショットから原因を特定できるように）
@@ -84,23 +167,25 @@ function createContext(host) {
   ];
   const log = [];
   for (const [type, attrs] of tries) {
+    const label = `${type}${attrs.antialias ? "(AA)" : ""}`;
     const canvas = document.createElement("canvas");
     let gl = null;
     try {
       gl = canvas.getContext(type, Object.assign({ alpha: false, depth: true, powerPreference: "default", preserveDrawingBuffer: false }, attrs));
     } catch (e) {
-      log.push(`${type}${attrs.antialias ? "(AA)" : ""}: 例外 ${e.message}`);
+      log.push(`${label}: 例外 ${e.message}`);
       continue;
     }
-    if (!gl) { log.push(`${type}${attrs.antialias ? "(AA)" : ""}: 取得できず`); continue; }
-    if (gl.isContextLost()) { log.push(`${type}: 失われたコンテキスト`); continue; }
+    if (!gl) { log.push(`${label}: 取得できず`); continue; }
+    if (gl.isContextLost()) { log.push(`${label}: 失われたコンテキスト`); continue; }
     try {
-      const prog = buildProgram(gl);
+      const body = buildProgram(gl, VS_BODY, ["aPos", "aNrm", "aCol", "aBone", "aExtra", "aP2", "aN2"], ["uViewProj", "uEye", "uDQ", "uGrip", "uPadC", "uPadS"]);
+      const props = buildProgram(gl, VS_PROPS, ["aPos", "aNrm", "aCol", "aBone"], ["uViewProj", "uEye", "uM"]);
       host.appendChild(canvas);
-      log.push(`${type}${attrs.antialias ? "(AA)" : ""}: OK`);
-      return { gl, canvas, prog, type, log, webgl2: type === "webgl2" };
+      log.push(`${label}: OK`);
+      return { gl, canvas, body, props, type, log };
     } catch (e) {
-      log.push(`${type}: ${e.message}`);
+      log.push(`${label}: ${e.message}`);
     }
   }
   const err = new Error("3D表示を使えません");
@@ -108,7 +193,7 @@ function createContext(host) {
   throw err;
 }
 
-function buildProgram(gl) {
+function buildProgram(gl, vs, attribs, uniforms) {
   const sh = (type, src) => {
     const s = gl.createShader(type);
     if (!s) throw new Error("createShader が null（コンテキストが失われている）");
@@ -119,26 +204,14 @@ function buildProgram(gl) {
   };
   const p = gl.createProgram();
   if (!p) throw new Error("createProgram が null");
-  gl.attachShader(p, sh(gl.VERTEX_SHADER, VS));
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, vs));
   gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS));
-  gl.bindAttribLocation(p, 0, "aPos");
-  gl.bindAttribLocation(p, 1, "aNrm");
-  gl.bindAttribLocation(p, 2, "aCol");
+  attribs.forEach((a, i) => gl.bindAttribLocation(p, i, a));
   gl.linkProgram(p);
   if (!gl.getProgramParameter(p, gl.LINK_STATUS) && !gl.isContextLost()) throw new Error(`リンク: ${gl.getProgramInfoLog(p)}`);
-  return {
-    p,
-    uViewProj: gl.getUniformLocation(p, "uViewProj"),
-    uEye: gl.getUniformLocation(p, "uEye"),
-  };
-}
-
-// まとまりを GPU に送る。送ったら JS 側の配列は捨ててよい
-function uploadBatches(gl, batches) {
-  return batches.map((b) => {
-    const buf = (data, target) => { const x = gl.createBuffer(); gl.bindBuffer(target || gl.ARRAY_BUFFER, x); gl.bufferData(target || gl.ARRAY_BUFFER, data, gl.STATIC_DRAW); return x; };
-    return { pos: buf(b.pos), nrm: buf(b.nrm), col: buf(b.col), idx: buf(b.idx, gl.ELEMENT_ARRAY_BUFFER), ni: b.ni };
-  });
+  const u = { p, n: attribs.length };
+  for (const name of uniforms) u[name] = gl.getUniformLocation(p, name.match(/^u(DQ|PadC|PadS|M)$/) ? `${name}[0]` : name);
+  return u;
 }
 
 // ---- カメラ（注視点のまわりを回る）----
@@ -152,13 +225,29 @@ function cameraEye(cam) {
 
 function createRenderer(host, batches) {
   const ctx = createContext(host);
-  const { gl, canvas, prog } = ctx;
-  const gpu = uploadBatches(gl, batches);
+  const { gl, canvas } = ctx;
   const cam = createCamera();
   const maxDpr = IS_MOBILE ? 1.5 : 2;
   let lost = false;
   let queued = false;
   const listeners = { lost: [] };
+  const buf = (data, target) => { const x = gl.createBuffer(); gl.bindBuffer(target || gl.ARRAY_BUFFER, x); gl.bufferData(target || gl.ARRAY_BUFFER, data, gl.STATIC_DRAW); return x; };
+
+  // 体のまとまりを GPU に送る（送ったら JS 側の配列は捨ててよい。色は後で差し替える）
+  const body = batches.map((b) => ({
+    pos: buf(b.pos), nrm: buf(b.nrm), col: buf(b.col), bone: buf(b.bone), extra: buf(b.extra), p2: buf(b.p2), n2: buf(b.n2),
+    idx: buf(b.idx, gl.ELEMENT_ARRAY_BUFFER), ni: b.ni,
+    idxEx: b.idxEx ? buf(b.idxEx, gl.ELEMENT_ARRAY_BUFFER) : null, niEx: b.niEx,
+  }));
+  let props = null;
+  let useExerciseIdx = false;
+  const uni = {
+    dq: new Float32Array(120), mats: new Float32Array(128), grip: new Float32Array(2),
+    padC: new Float32Array(MAX_PADS * 4), padS: new Float32Array(MAX_PADS * 4),
+  };
+  // 初期値：恒等変換
+  for (let i = 0; i < 15; i++) uni.dq[i * 8 + 3] = 1;
+  for (let i = 0; i < 8; i++) { uni.mats[i * 16] = uni.mats[i * 16 + 5] = uni.mats[i * 16 + 10] = uni.mats[i * 16 + 15] = 1; }
 
   canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); lost = true; listeners.lost.forEach((f) => f()); });
 
@@ -166,6 +255,12 @@ function createRenderer(host, batches) {
     const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
     const w = Math.max(1, Math.round(host.clientWidth * dpr)), h = Math.max(1, Math.round(host.clientHeight * dpr));
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  }
+
+  function attrib(i, b, size, type, normalized) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    gl.enableVertexAttribArray(i);
+    gl.vertexAttribPointer(i, size, type || gl.FLOAT, !!normalized, 0, 0);
   }
 
   function draw() {
@@ -177,17 +272,36 @@ function createRenderer(host, batches) {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
     gl.disable(gl.CULL_FACE);
-    gl.useProgram(prog.p);
     const eye = cameraEye(cam);
-    const vp = mat4Mul(mat4Perspective(cam.fovy, canvas.width / canvas.height, 0.05, 20), mat4LookAt(eye, cam.target, [0, 1, 0]));
-    gl.uniformMatrix4fv(prog.uViewProj, false, vp);
-    gl.uniform3fv(prog.uEye, eye);
-    for (const b of gpu) {
-      gl.bindBuffer(gl.ARRAY_BUFFER, b.pos); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, b.nrm); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, b.col); gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.UNSIGNED_BYTE, true, 0, 0);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.idx);
-      gl.drawElements(gl.TRIANGLES, b.ni, gl.UNSIGNED_SHORT, 0);
+    const near = cam.near || 0.05;
+    const vp = mat4Mul(mat4Perspective(cam.fovy, canvas.width / canvas.height, near, 20), mat4LookAt(eye, cam.target, [0, 1, 0]));
+
+    const P = ctx.body;
+    gl.useProgram(P.p);
+    gl.uniformMatrix4fv(P.uViewProj, false, vp);
+    gl.uniform3fv(P.uEye, eye);
+    gl.uniform4fv(P.uDQ, uni.dq);
+    gl.uniform2fv(P.uGrip, uni.grip);
+    gl.uniform4fv(P.uPadC, uni.padC);
+    gl.uniform4fv(P.uPadS, uni.padS);
+    for (const b of body) {
+      attrib(0, b.pos, 3); attrib(1, b.nrm, 3); attrib(2, b.col, 3, gl.UNSIGNED_BYTE, true);
+      attrib(3, b.bone, 3); attrib(4, b.extra, 2); attrib(5, b.p2, 3); attrib(6, b.n2, 3);
+      const ex = useExerciseIdx && b.idxEx;
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ex ? b.idxEx : b.idx);
+      gl.drawElements(gl.TRIANGLES, ex ? b.niEx : b.ni, gl.UNSIGNED_SHORT, 0);
+    }
+    for (let i = 4; i < 7; i++) gl.disableVertexAttribArray(i);
+
+    if (props && props.ni) {
+      const Q = ctx.props;
+      gl.useProgram(Q.p);
+      gl.uniformMatrix4fv(Q.uViewProj, false, vp);
+      gl.uniform3fv(Q.uEye, eye);
+      gl.uniformMatrix4fv(Q.uM, false, uni.mats);
+      attrib(0, props.pos, 3); attrib(1, props.nrm, 3); attrib(2, props.col, 3, gl.UNSIGNED_BYTE, true); attrib(3, props.bone, 1);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, props.idx);
+      gl.drawElements(gl.TRIANGLES, props.ni, gl.UNSIGNED_SHORT, 0);
     }
   }
 
@@ -212,19 +326,39 @@ function createRenderer(host, batches) {
       cam.pitch = Math.max(-1.2, Math.min(1.2, cam.pitch + (cur[1] - prev[1]) * 0.006));
     } else if (pointers.size === 2 && pinch0) {
       const [a, b] = [...pointers.values()];
-      cam.dist = Math.max(0.6, Math.min(6, dist0 * pinch0 / Math.max(1, Math.hypot(a[0] - b[0], a[1] - b[1]))));
+      cam.dist = Math.max(0.4, Math.min(6, dist0 * pinch0 / Math.max(1, Math.hypot(a[0] - b[0], a[1] - b[1]))));
     }
     request();
   });
   const up = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch0 = 0; };
   canvas.addEventListener("pointerup", up);
   canvas.addEventListener("pointercancel", up);
-  canvas.addEventListener("wheel", (e) => { e.preventDefault(); cam.dist = Math.max(0.6, Math.min(6, cam.dist * Math.exp(e.deltaY * 0.001))); request(); }, { passive: false });
+  canvas.addEventListener("wheel", (e) => { e.preventDefault(); cam.dist = Math.max(0.4, Math.min(6, cam.dist * Math.exp(e.deltaY * 0.001))); request(); }, { passive: false });
   window.addEventListener("resize", request);
 
   return {
     ctx, cam, request, draw,
     onLost(f) { listeners.lost.push(f); },
+    // 色の差し替え（まとまりごとの Uint8Array）
+    setColors(cols) {
+      cols.forEach((c, i) => { gl.bindBuffer(gl.ARRAY_BUFFER, body[i].col); gl.bufferSubData(gl.ARRAY_BUFFER, 0, c); });
+    },
+    useExerciseParts(on) { useExerciseIdx = on; },
+    setProps(m) {
+      if (props) for (const k of ["pos", "nrm", "col", "bone", "idx"]) gl.deleteBuffer(props[k]);
+      props = m && m.ni ? { pos: buf(m.pos), nrm: buf(m.nrm), col: buf(m.col), bone: buf(m.bone), idx: buf(m.idx, gl.ELEMENT_ARRAY_BUFFER), ni: m.ni } : null;
+    },
+    // dq: 15骨×(実部4+双対部4), mats: 8行列×16, grip: [右,左], pads: [{c,h,rx}]
+    setPose(dq, mats, grip, pads) {
+      uni.dq.set(dq);
+      uni.mats.set(mats);
+      uni.grip[0] = grip[0]; uni.grip[1] = grip[1];
+      uni.padC.fill(0); uni.padS.fill(0);
+      (pads || []).slice(0, MAX_PADS).forEach((p, i) => {
+        uni.padC.set([p.c[0], p.c[1], p.c[2], Math.cos(p.rx || 0)], i * 4);
+        uni.padS.set([p.h[0], p.h[1], p.h[2], Math.sin(p.rx || 0)], i * 4);
+      });
+    },
     info() {
       const dbg = gl.getExtension("WEBGL_debug_renderer_info");
       return { type: ctx.type, gpu: dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER), dpr: Math.min(window.devicePixelRatio || 1, maxDpr) };

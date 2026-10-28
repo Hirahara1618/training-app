@@ -62,25 +62,35 @@ function smoothNormals(pos, idx) {
   return n;
 }
 
-// 部品をまとまりに詰める。color(part) は [r,g,b]（0〜1）
-function packBatches(parts, color) {
+// 部品をまとまりに詰める。color(part) は [r,g,b]（0〜1）。
+// hidden(part) が true の部品は、種目表示用のインデックス（idxEx）から外す
+function packBatches(parts, color, hidden) {
   const batches = [];
   let cur = null;
   const flush = () => {
     if (!cur) return;
     const nv = cur.nv, ni = cur.ni;
-    const b = { pos: new Float32Array(nv * 3), nrm: new Float32Array(nv * 3), col: new Uint8Array(nv * 3), idx: new Uint16Array(ni), nv, ni, parts: cur.parts };
+    const b = {
+      pos: new Float32Array(nv * 3), nrm: new Float32Array(nv * 3), col: new Uint8Array(nv * 3), idx: new Uint16Array(ni), nv, ni, parts: cur.parts,
+      bone: new Float32Array(nv * 3), extra: new Float32Array(nv * 2), p2: new Float32Array(nv * 3), n2: new Float32Array(nv * 3),
+    };
+    const ex = [];
     let vo = 0, io = 0;
     for (const p of cur.parts) {
       const n = p.pos.length / 3;
       b.pos.set(p.pos, vo * 3);
       b.nrm.set(p.nrm, vo * 3);
+      if (p.bones) { b.bone.set(p.bones, vo * 3); b.extra.set(p.extra, vo * 2); b.p2.set(p.p2, vo * 3); b.n2.set(p.n2, vo * 3); }
+      else { b.p2.set(p.pos, vo * 3); b.n2.set(p.nrm, vo * 3); for (let i = 0; i < n; i++) b.bone[(vo + i) * 3 + 2] = 1; }
       const c = color(p);
       for (let i = 0; i < n; i++) { b.col[(vo + i) * 3] = c[0] * 255; b.col[(vo + i) * 3 + 1] = c[1] * 255; b.col[(vo + i) * 3 + 2] = c[2] * 255; }
       for (let i = 0; i < p.idx.length; i++) b.idx[io + i] = p.idx[i] + vo;
+      if (!(hidden && hidden(p))) for (let i = 0; i < p.idx.length; i++) ex.push(p.idx[i] + vo);
       p.batch = batches.length; p.vStart = vo; p.iStart = io;
       vo += n; io += p.idx.length;
     }
+    b.idxEx = new Uint16Array(ex);
+    b.niEx = ex.length;
     batches.push(b);
     cur = null;
   };
@@ -94,6 +104,18 @@ function packBatches(parts, color) {
   }
   flush();
   return batches;
+}
+
+// まとまりごとの色の配列を作り直す（種目を変えたとき）
+function batchColors(batches, color) {
+  return batches.map((b) => {
+    const col = new Uint8Array(b.nv * 3);
+    for (const p of b.parts) {
+      const c = color(p), n = p.pos.length / 3;
+      for (let i = 0; i < n; i++) { col[(p.vStart + i) * 3] = c[0] * 255; col[(p.vStart + i) * 3 + 1] = c[1] * 255; col[(p.vStart + i) * 3 + 2] = c[2] * 255; }
+    }
+    return col;
+  });
 }
 
 function bounds(parts) {
