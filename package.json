@@ -8,7 +8,7 @@
     "build": "node tools/build.mjs",
     "serve": "node tools/serve.mjs dist 8080",
     "icons": "node tools/make-icons.mjs",
-    "test": "node tools/test-logic.mjs && npm run build && node tools/test-app.mjs",
+    "test": "node tools/test-logic.mjs && node push-server/test.mjs && npm run build && node tools/test-app.mjs && node tools/test-calendar.mjs && node tools/test-push.mjs",
     "check": "npm run build && node tools/check.mjs selftest lo && node tools/check.mjs all lo",
     "sheets": "node tools/shot-ex.mjs",
     "overview": "node tools/overview.mjs",

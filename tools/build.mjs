@@ -6,6 +6,7 @@
 //   <script type="application/octet-stream" id="..." data-embed="path/to/file.bin"></script>
 //     → ファイルを base64 にして埋め込む（模型のメッシュ用。パスはリポジトリのルートから）
 // どのファイルでも __VERSION__ は版の文字列に置き換える。
+// __PUSH_URL__ / __PUSH_KEY__ は休憩通知のサーバーの場所と公開鍵（push-server/client.json。なければ空＝通知なし）。
 
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -26,8 +27,11 @@ function read(p) {
   return fs.readFileSync(p, "utf8");
 }
 
+const pushFile = path.join(ROOT, "push-server/client.json");
+const PUSH = fs.existsSync(pushFile) ? JSON.parse(fs.readFileSync(pushFile, "utf8")) : {};
+
 function stamped(text) {
-  return text.replaceAll("__VERSION__", VERSION);
+  return text.replaceAll("__VERSION__", VERSION).replaceAll("__PUSH_URL__", PUSH.url || "").replaceAll("__PUSH_KEY__", PUSH.key || "");
 }
 
 function bundleHtml(file) {

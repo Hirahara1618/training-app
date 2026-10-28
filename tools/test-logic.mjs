@@ -145,4 +145,49 @@ test("デロード：伸び悩み＋追い込み続きなら提案、順調な�
 });
 test("Epley", () => { assert.ok(Math.abs(T.epley(100, 3) - 110) < 1e-9); });
 
+test("達成率：予定日・実施・セット・連続週・カレンダー", () => {
+  // 月・木にルーティン（各4セット＝2種目×2）。2026-10-05 は月曜
+  const days = [
+    { key: "a", title: "A", weekday: 1, exercises: [{ id: "bench", sets: 2 }, { id: "c_run", sets: 2, cardio: true }] },
+    { key: "b", title: "B", weekday: 4, exercises: [{ id: "squat", sets: 4 }] },
+  ];
+  const wk = (date, dayKey, exercises) => ({ date, dayKey, exercises });
+  const S = (done) => ({ w: 60, r: 5, done });
+  const ws = [
+    wk("2026-10-05", "a", [{ id: "bench", sets: [S(true), S(true)] }, { id: "c_run", cardio: true, sets: [{ w: "", r: 20 }, { w: "", r: "" }] }]), // 3/4
+    wk("2026-10-08", "b", [{ id: "squat", sets: [S(true), S(true), S(true), S(true)] }]), // 4/4
+    wk("2026-10-12", "a", [{ id: "bench", sets: [S(true), S(false)] }]),               // 月：1/4（記録あり）
+    // 10-15（木）は休み
+    wk("2026-10-17", "b", [{ id: "squat", sets: [S(true), S(true), S(true), S(true)] }]), // 土に振り替え
+    wk("2026-10-19", "a", [{ id: "bench", sets: [{ w: "", r: "", done: false }] }]),  // 空の記録は数えない
+  ];
+  assert.equal(T.doneSets(ws[0]), 3);
+  assert.equal(T.plannedSets(ws[0], days), 4);
+  assert.equal(T.plannedSets(wk("x", "gone", [{ sets: [{}, {}, {}] }]), days), 3, "ルーティンがなければ記録のセット数");
+  const a = T.adherence(ws, days, "2026-10-01", "2026-10-21");
+  // 予定日は最初の記録の日（10-05）から：5,8,12,15,19 → 実施 5,8,12
+  assert.equal(a.planned, 5);
+  assert.equal(a.hit, 3);
+  assert.equal(a.trained, 4);
+  assert.ok(Math.abs(a.rate - 0.6) < 1e-9);
+  assert.ok(Math.abs(a.setRate - (3 + 4 + 1 + 4) / 16) < 1e-9);
+  assert.equal(T.adherence([], days, "2026-10-01", "2026-10-31").rate, null);
+  // 連続週：10/5週=2日、10/12週=2日（12と17）、10/19週は途中
+  assert.equal(T.weekStreak(ws, days, "2026-10-21"), 2);
+  assert.equal(T.weekStreak(ws.slice(0, 3), days, "2026-10-21"), 0, "先週が1日だけなら途切れる");
+  assert.equal(T.weekStreak(ws.slice(0, 3), days, "2026-10-13"), 1, "今週が途中なら先週から数える");
+  assert.equal(T.weekStreak([], days, "2026-10-21"), 0);
+  // カレンダー：2026年10月は木曜はじまり → 先頭に空き3つ、31日、7の倍数
+  const by = T.trainingByDate(ws, days);
+  const cells = T.monthCells(2026, 10, by, days);
+  assert.equal(cells.length % 7, 0);
+  assert.ok(cells.slice(0, 3).every((c) => c === null));
+  assert.equal(cells[3].date, "2026-10-01");
+  assert.equal(cells.filter(Boolean).length, 31);
+  const c5 = cells.find((c) => c && c.date === "2026-10-05");
+  assert.equal(c5.plannedDay, true);
+  assert.equal(c5.train.done, 3);
+  assert.equal(cells.find((c) => c && c.date === "2026-10-19").train, null, "空の記録はなし");
+});
+
 console.log(`${n} 件すべて通過`);

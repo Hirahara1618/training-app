@@ -131,6 +131,7 @@ function renderToday(root) {
     const workouts = sortedWorkouts(db.get(db.collection("workouts")));
     if (date === todayYmd()) h += deloadNotice(workouts, date, true);
     h += `<div class="wk-title"><h2>${esc(Today.wk.title || "（無題）")}</h2><span id="save-status" class="status"></span></div>`;
+    if (Today.wk.exercises.length) h += `<div class="progress" id="progress">${progressHtml()}</div>`;
     if (!Today.wk.exercises.length) h += `<div class="empty"><p>このルーティンには種目がありません。</p><button data-go="routine">種目を追加する</button></div>`;
     Today.wk.exercises.forEach((x, i) => { h += exerciseCard(x, i, workouts); });
   }
@@ -223,7 +224,22 @@ function deloadNotice(workouts, date, compact) {
   return `<div class="notice deload"><b>デロード（軽い週）を検討しましょう</b><ul>${a.reasons.map((r) => `<li>${esc(r)}</li>`).join("")}</ul><span>${tip}</span></div>`;
 }
 
+// その日の進み具合：終えたセット（筋トレは✓、有酸素は記録あり）／ルーティンのセット数
+function progressHtml() {
+  const wk = Today.wk;
+  let done = 0, planned = 0;
+  for (const x of wk.exercises) {
+    if (!x.removed) planned += num(x.def.sets) || 1;
+    for (const s of x.sets) if (x.def.cardio ? setHasData(s) : s.done) done++;
+  }
+  const r = planned ? Math.min(1, done / planned) : 0;
+  return `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${planned}" aria-valuenow="${done}"><i class="${r >= 1 ? "full" : ""}" style="width:${Math.round(r * 100)}%"></i></div>
+    <p>${r >= 1 ? "全セット完了！おつかれさまでした" : `${done} / ${planned} セット完了（${Math.round(r * 100)}%）`}</p>`;
+}
+
 function changed() {
+  const p = $("#progress");
+  if (p && Today.wk) p.innerHTML = progressHtml();
   setStatus("unsaved");
   Today.save();
 }

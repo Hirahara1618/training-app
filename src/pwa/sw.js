@@ -71,6 +71,25 @@ async function cacheFirst(req, name) {
   return res;
 }
 
+// 休憩タイマーの通知（通知サーバーからの本文なしの Push）
+self.addEventListener("push", (e) => {
+  e.waitUntil(self.registration.showNotification("休憩終了", {
+    body: "次のセットを始めましょう",
+    tag: "rest",
+    renotify: true,
+    icon: "icons/icon-192.png",
+  }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil((async () => {
+    const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of list) if (c.url.startsWith(self.registration.scope) && "focus" in c) return c.focus();
+    return self.clients.openWindow("./");
+  })());
+});
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;

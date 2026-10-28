@@ -1,0 +1,15 @@
+{
+  "name": "training-push",
+  "private": true,
+  "type": "module",
+  "description": "休憩タイマーの通知サーバー（Cloudflare Workers）",
+  "scripts": {
+    "test": "node test.mjs",
+    "e2e": "node e2e.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.154.0"
+  }
+}

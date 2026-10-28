@@ -317,3 +317,83 @@ function deloadAdvice(workouts, today) {
   const suggest = (stall && stalled.length >= 3) || [stall, tired, long].filter(Boolean).length >= 2;
   return { suggest, reasons };
 }
+
+// ---- カレンダーと達成率 ----
+
+// 終えたセット数（筋トレは✓、有酸素は記録があれば）
+function doneSets(w) {
+  let n = 0;
+  for (const e of (w && w.exercises) || []) for (const s of e.sets || []) if (e.cardio ? setHasData(s) : s && s.done) n++;
+  return n;
+}
+
+// その記録の予定セット数（ルーティンのセット数の合計。ルーティンがなくなっていれば記録のセット数）
+function plannedSets(w, days) {
+  const r = (days || []).find((d) => d.key === w.dayKey);
+  if (r) return r.exercises.reduce((a, e) => a + (num(e.sets) || 1), 0);
+  return ((w && w.exercises) || []).reduce((a, e) => a + (e.sets || []).length, 0);
+}
+
+// 日付ごとの { n: 記録の数, done, planned: その記録の予定セット }
+function trainingByDate(workouts, days) {
+  const out = {};
+  for (const w of workouts) {
+    if (!w || !w.date || !(w.exercises || []).some((e) => (e.sets || []).some(setHasData))) continue;
+    const o = (out[w.date] = out[w.date] || { n: 0, done: 0, planned: 0 });
+    o.n++;
+    o.done += doneSets(w);
+    o.planned += plannedSets(w, days);
+  }
+  return out;
+}
+
+// ルーティンのある曜日（1=月…7=日）
+function plannedWeekdays(days) {
+  const s = new Set();
+  for (const d of days || []) { const w = routineWeekday(d); if (w >= 1 && w <= 7) s.add(w); }
+  return s;
+}
+
+// 期間 [from, to] の達成：予定日（ルーティンのある曜日）のうち記録した日。
+// 予定日は最初の記録の日から数える（使い始める前の日を「休んだ」にしないため）
+function adherence(workouts, days, from, to) {
+  const by = trainingByDate(workouts, days);
+  const dates = Object.keys(by).sort();
+  const wds = plannedWeekdays(days);
+  let planned = 0, hit = 0, trained = 0, setsDone = 0, setsPlanned = 0;
+  if (!dates.length) return { planned, hit, trained, rate: null, setRate: null };
+  const start = from < dates[0] ? dates[0] : from;
+  for (let d = start; d <= to; d = addDays(d, 1)) {
+    const t = by[d];
+    if (t) { trained++; setsDone += t.done; setsPlanned += t.planned; }
+    if (wds.has(weekdayOf(d))) { planned++; if (t) hit++; }
+  }
+  return { planned, hit, trained, rate: planned ? hit / planned : null, setRate: setsPlanned ? Math.min(1, setsDone / setsPlanned) : null };
+}
+
+// 何週続けて、週の予定日数ぶん記録できたか。今週はまだ途中なので、届いていれば数え、届いていなければ先週から数える
+function weekStreak(workouts, days, today) {
+  const by = trainingByDate(workouts, days);
+  const need = plannedWeekdays(days).size || 1;
+  const first = Object.keys(by).sort()[0];
+  if (!first) return 0;
+  const count = (ws) => { let n = 0; for (let i = 0; i < 7; i++) if (by[addDays(ws, i)]) n++; return n; };
+  let ws = weekStart(today), streak = 0;
+  if (count(ws) >= need) streak++;
+  ws = addDays(ws, -7);
+  while (ws >= weekStart(first) && count(ws) >= need) { streak++; ws = addDays(ws, -7); }
+  return streak;
+}
+
+// 月のカレンダーの日（月曜はじまり、前後の月の日は null）。各日に { date, train, plannedDay }
+function monthCells(year, month /*1-12*/, by, days) {
+  const wds = plannedWeekdays(days);
+  const first = `${year}-${pad2(month)}-01`;
+  const cells = [];
+  for (let i = 1; i < weekdayOf(first); i++) cells.push(null);
+  for (let d = first; parseYmd(d).getMonth() + 1 === month; d = addDays(d, 1)) {
+    cells.push({ date: d, train: by[d] || null, plannedDay: wds.has(weekdayOf(d)) });
+  }
+  while (cells.length % 7) cells.push(null);
+  return cells;
+}

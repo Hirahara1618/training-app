@@ -1,0 +1,20 @@
+# 休憩タイマーの通知サーバー。デプロイ: npx wrangler deploy（初回は npx wrangler login）
+name = "training-push"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+# 通知を受け付ける手帳の場所（本番とテスト用）
+ALLOWED_ORIGINS = "https://hirahara1618.github.io,http://localhost:8080"
+VAPID_SUBJECT = "https://hirahara1618.github.io/training-app/"
+# 公開鍵（秘密鍵は secret の VAPID_PRIVATE_JWK に入れる。push-server/vapid-keys.mjs で作る）
+VAPID_PUBLIC = ""
+
+[[durable_objects.bindings]]
+name = "TIMERS"
+class_name = "RestTimer"
+
+# 無料プランで使える SQLite 版の Durable Objects
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RestTimer"]

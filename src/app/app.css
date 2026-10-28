@@ -274,7 +274,7 @@ h3.sub small { font-weight: 400; color: var(--muted); font-size: 12px; margin-le
 .card.hist li { display: flex; gap: 8px; justify-content: space-between; padding: 1px 0; }
 .card.hist li > span:first-child { flex-shrink: 0; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card.hist li .muted { font-family: var(--font-num); font-size: 15px; text-align: right; overflow-wrap: anywhere; }
-.backup p { margin: 6px 0; font-size: 14px; }
+.backup p, .push p { margin: 6px 0; font-size: 14px; }
 
 /* ---- ルーティン ---- */
 .r-head { display: grid; grid-template-columns: 1fr 7.5em; gap: 8px; }
@@ -333,3 +333,35 @@ h3.sub small { font-weight: 400; color: var(--muted); font-size: 12px; margin-le
 .seg.mini { margin: 0; flex: 0 0 auto; }
 .seg.mini button { flex: 0 0 auto; }
 .chart-card h3.sub { margin: 4px 6px; }
+
+/* カレンダーと達成率（履歴タブ） */
+.cal-head { display: flex; align-items: center; justify-content: space-between; }
+.cal-head .sub { margin: 0; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 8px 0 4px; }
+.cal-wd { text-align: center; font-size: 11px; color: var(--muted); }
+.cal-d {
+  aspect-ratio: 1; min-width: 0; padding: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-num); font-size: 15px; border-radius: 50%; border: 1.5px solid transparent;
+  background: transparent; color: var(--text);
+}
+button.cal-d { cursor: pointer; }
+.cal-d.empty { visibility: hidden; }
+.cal-d.full { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 700; }
+.cal-d.part { background: color-mix(in srgb, var(--accent) 28%, transparent); border-color: var(--accent); }
+.cal-d.plan { border-color: var(--line); border-style: solid; }
+.cal-d.miss { border-color: var(--muted); border-style: dashed; color: var(--muted); }
+.cal-d.today { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--text); }
+.cal-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 12px; }
+.cal-legend > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.cal-legend .k { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1.5px solid transparent; box-sizing: border-box; }
+.cal-legend .k.full { background: var(--accent); }
+.cal-legend .k.part { background: color-mix(in srgb, var(--accent) 28%, transparent); border-color: var(--accent); }
+.cal-legend .k.plan { border-color: var(--line); }
+.cal-legend .k.miss { border-color: var(--muted); border-style: dashed; }
+
+/* 今日の進み具合 */
+.progress { margin: 4px 0 10px; }
+.progress .bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.progress .bar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; transition: width .2s; }
+.progress .bar i.full { background: var(--good); }
+.progress p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }

@@ -60,8 +60,7 @@ function renderWeight(root) {
     const ser = bwSeries(entries, Weight.range, today);
     h += `<div class="card chart-card">
       <h3 class="sub">体重</h3>
-      ${dateChart({ from: ser.from, to: ser.to, points: ser.points.map((p) => ({ date: p.date, y: p.kg })), line: ser.line.map((p) => ({ date: p.date, y: p.kg })), label: "体重の推移" })}
-      <div class="legend"><span class="pt-key"></span>毎日 <span class="ln-key"></span>7日移動平均</div>
+      ${dateChart({ from: ser.from, to: ser.to, points: ser.points.map((p) => ({ date: p.date, y: p.kg })), line: ser.points.map((p) => ({ date: p.date, y: p.kg })), label: "体重の推移" })}
       <div class="change">この期間の変化（7日平均）：<b>${ser.change != null ? sign(ser.change) + "kg" : "—"}</b></div>
     </div>`;
   }
