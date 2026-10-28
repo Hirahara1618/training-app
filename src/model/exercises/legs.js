@@ -428,7 +428,7 @@ defineExercise({
 // ---- ふくらはぎ ----
 // かかとを上げる：足の母指球より少し先（指の付け根）を支点に、足首ごと上がる
 // （足を1枚の板として回すので、支点を指先寄りにして、指が台に入る深さを小さくしている）
-function calfPivot(rig, side) { return V.add(rig.sides[side].T, [0, 0, 0.04]); }
+function calfPivot(rig, side) { return V.add(rig.sides[side].T, [0, 0, 0.05]); }
 function calfAnkle(rig, side, phi, lift, dz) {
   const s = rig.sides[side], P = calfPivot(rig, side);
   const A = V.add(V.add(P, [0, lift, dz || 0]), M3.apply(M3.rx(phi), V.sub(s.A, P)));

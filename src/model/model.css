@@ -32,10 +32,11 @@ button, a.button { font: inherit; color: var(--text); background: var(--surface)
 body:not(.app-mode) .back { display: none; }
 body.app-mode .top h1 { display: none; }
 
-.bottom { bottom: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom)); display: grid; gap: 6px; }
+.bottom { bottom: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.bottom > * { min-width: 0; }
 #views { display: flex; gap: 6px; }
-#views button { flex: 1; }
-.credit { font-size: 10px; line-height: 1.4; color: #9aa0a6; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+#views button { flex: 1 1 0; min-width: 0; justify-content: center; padding: 6px 4px; }
+.credit { overflow-wrap: anywhere; font-size: 10px; line-height: 1.4; color: #9aa0a6; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
 .credit a { color: inherit; }
 #status { position: fixed; left: 50%; top: 45%; transform: translate(-50%, -50%); color: #ece8e1; z-index: 3; }
 #fail { position: fixed; inset: 0; z-index: 4; background: var(--bg); color: #ece8e1; padding: calc(24px + env(safe-area-inset-top)) 16px 24px; overflow: auto; }

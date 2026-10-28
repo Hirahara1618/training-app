@@ -57,8 +57,11 @@ async function loadMesh() {
 
 // ?hl=FMA13336,FMA13377 で指定パーツを青に（検査用）
 const HIGHLIGHT = new Set((params.get("hl") || "").split(",").filter(Boolean));
+// 頭（楕円体）の色：筋や骨と紛れない、落ち着いた肌色寄りの灰
+const HEAD_COLOR = [0.7, 0.66, 0.62];
 function anatomyColor(p) {
   if (HIGHLIGHT.has(p.id)) return [0.24, 0.45, 0.77];
+  if (p.r === "head") return HEAD_COLOR;
   return ANATOMY_COLORS[p.c] || ANATOMY_COLORS.m;
 }
 function roleColor(def) {
@@ -66,6 +69,7 @@ function roleColor(def) {
   for (const k of ["support", "sub", "main"]) for (const r of def.roles[k] || []) roleOf[r] = k;
   return (p) => {
     if (HIGHLIGHT.has(p.id)) return [0.95, 0.8, 0.2];
+    if (p.r === "head") return HEAD_COLOR;
     if (p.c === "b") return ROLE_COLORS.bone;
     const r = p.c === "t" ? TISSUE_ROLE[p.id] : p.r;
     if (roleOf[r]) return ROLE_COLORS[roleOf[r]];
@@ -291,8 +295,23 @@ async function main() {
   const info = r.info();
   $("#gl-info").textContent = `${info.type} · ${QUALITY === "mobile" ? "スマホ版" : "通常版"} · ${info.gpu} · ${Object.entries(timing).map(([k, v]) => `${k}${v}ms`).join(" ")}`;
   selectExercise(decodeURIComponent(location.hash.slice(1)));
+  updateFraming();
   window.__ready = true;
 }
+
+// 模型に使える高さの割合（画面下の操作部分の上端まで）。操作部分を隠したとき（検査の撮影）は 1
+function updateFraming() {
+  const r = View.renderer;
+  if (!r) return;
+  const b = document.querySelector(".bottom");
+  const h = window.innerHeight || 1;
+  // fixed の要素は表示中でも offsetParent が null なので、矩形があるかで見る
+  const top = b && b.getClientRects().length ? b.getBoundingClientRect().top : h;
+  r.cam.free = clamp(top / h, 0.35, 1);
+  r.request();
+}
+window.addEventListener("resize", updateFraming);
+if (window.ResizeObserver) new ResizeObserver(updateFraming).observe(document.querySelector(".bottom"));
 
 // ---- 操作 ----
 $("#views").addEventListener("click", (e) => {
@@ -341,7 +360,7 @@ window.__look = (target, dist, yaw, pitch) => {
   const r = View.renderer;
   if (!r) return false;
   const t = typeof target === "string" ? View.solved.extra[target] : target;
-  Object.assign(r.cam, { target: t.slice(), dist, yaw, pitch: pitch == null ? r.cam.pitch : pitch, near: 0.01 });
+  Object.assign(r.cam, { target: t.slice(), dist, yaw, pitch: pitch == null ? r.cam.pitch : pitch, near: 0.01, free: 1, shiftY: 0 });
   r.draw();
   return true;
 };

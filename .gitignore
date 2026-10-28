@@ -9,3 +9,7 @@ __pycache__/
 
 # 検査ツールの出力
 /tools/out/
+
+# 実機の確認でいただいたスクリーンショット
+IMG_*.jpeg
+IMG_*.png

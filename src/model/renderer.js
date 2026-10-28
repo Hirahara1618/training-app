@@ -216,7 +216,7 @@ function buildProgram(gl, vs, attribs, uniforms) {
 
 // ---- カメラ（注視点のまわりを回る）----
 function createCamera() {
-  return { target: [0, 0.9, 0], dist: 2.6, yaw: 0, pitch: 0.08, fovy: 0.6 };
+  return { target: [0, 0.9, 0], dist: 2.6, yaw: 0, pitch: 0.08, fovy: 0.6, free: 1 };
 }
 function cameraEye(cam) {
   const cp = Math.cos(cam.pitch);
@@ -272,9 +272,17 @@ function createRenderer(host, batches) {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
     gl.disable(gl.CULL_FACE);
-    const eye = cameraEye(cam);
+    // 模型に使える高さの割合 free（画面下の操作部分を除いた上側）に収まるよう引き、その範囲の真ん中に映す。
+    // 縦長の画面では横幅にも収まるようさらに引く（種目のカメラは縦横比 0.69 の画面で決めている）
+    const aspect = canvas.width / canvas.height;
+    const free = Math.min(1, Math.max(0.35, cam.free || 1));
+    const fit = Math.max(1, 0.69 / (aspect / free));
+    const eye = cameraEye(Object.assign({}, cam, { dist: cam.dist * fit / free }));
     const near = cam.near || 0.05;
-    const vp = mat4Mul(mat4Perspective(cam.fovy, canvas.width / canvas.height, near, 20), mat4LookAt(eye, cam.target, [0, 1, 0]));
+    let proj = mat4Perspective(cam.fovy, aspect, near, 20);
+    const shift = cam.shiftY == null ? 1 - free : cam.shiftY;
+    if (shift) proj = mat4Mul([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, shift, 0, 1], proj);
+    const vp = mat4Mul(proj, mat4LookAt(eye, cam.target, [0, 1, 0]));
 
     const P = ctx.body;
     gl.useProgram(P.p);
@@ -315,7 +323,8 @@ function createRenderer(host, batches) {
   const pointers = new Map();
   let pinch0 = 0, dist0 = 0;
   canvas.style.touchAction = "none";
-  canvas.addEventListener("pointerdown", (e) => { canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, [e.clientX, e.clientY]); if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); dist0 = cam.dist; } });
+  // 1本目の指が触れたら、取りこぼした古い指を消す（離れた通知を取りこぼすと「2本指のまま」になり、回せなくなっていた）
+  canvas.addEventListener("pointerdown", (e) => { if (e.isPrimary) { pointers.clear(); pinch0 = 0; } try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 取れなくても動く */ } pointers.set(e.pointerId, [e.clientX, e.clientY]); if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); dist0 = cam.dist; } });
   canvas.addEventListener("pointermove", (e) => {
     const prev = pointers.get(e.pointerId);
     if (!prev) return;
@@ -333,6 +342,7 @@ function createRenderer(host, batches) {
   const up = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch0 = 0; };
   canvas.addEventListener("pointerup", up);
   canvas.addEventListener("pointercancel", up);
+  canvas.addEventListener("lostpointercapture", up);
   canvas.addEventListener("wheel", (e) => { e.preventDefault(); cam.dist = Math.max(0.4, Math.min(6, cam.dist * Math.exp(e.deltaY * 0.001))); request(); }, { passive: false });
   window.addEventListener("resize", request);
 

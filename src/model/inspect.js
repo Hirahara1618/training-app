@@ -134,6 +134,10 @@ function inspectCheck(id, n) {
           if (sp.q[0] < p._lo[0] || sp.q[0] > p._hi[0] || sp.q[1] < p._lo[1] || sp.q[1] > p._hi[1] || sp.q[2] < p._lo[2] || sp.q[2] > p._hi[2]) continue;
           if (!insidePart(p, sp.q)) continue;
           const near = nearestVertex(p, sp.q);
+          // 間引きで閉じきっていない薄いパーツでは光線の判定が誤ることがある。
+          // 内側の点なら、表面までの距離はパーツの一番薄い方向の幅の半分を超えない
+          const thin = Math.min(p._hi[0] - p._lo[0], p._hi[1] - p._lo[1], p._hi[2] - p._lo[2]);
+          if (near.d > thin / 2) continue;
           const slot = p.bones[near.i * 3];
           if (heldBy && (slot === 10 || slot === 13 || slot === 9 || slot === 12)) continue;
           const d = near.d + sp.extra;

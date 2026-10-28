@@ -42,7 +42,34 @@ function decodeParts(buf, manifest) {
       out.push({ id: p.id, c: p.c, r: p.r, side, pos, idx, nrm });
     }
   }
+  const head = headPart(manifest);
+  if (head) out.push(head);
   return out;
+}
+
+// 顔の細かい筋と頭蓋骨の代わりの、なめらかな頭（楕円体）。manifest.head は OBJ 座標の mm
+function headPart(manifest) {
+  const h = manifest.head;
+  if (!h) return null;
+  const SEG = 28, RING = 18;
+  const pos = [], idx = [];
+  for (let i = 0; i <= RING; i++) {
+    const th = (i / RING) * Math.PI;
+    for (let j = 0; j < SEG; j++) {
+      const ph = (j / SEG) * Math.PI * 2;
+      const x = h.c[0] + h.r[0] * Math.sin(th) * Math.cos(ph);
+      const y = h.c[1] + h.r[1] * Math.sin(th) * Math.sin(ph);
+      const z = h.c[2] + h.r[2] * Math.cos(th);
+      pos.push(x / 1000, (z - manifest.zMin) / 1000, -y / 1000);
+    }
+  }
+  for (let i = 0; i < RING; i++) for (let j = 0; j < SEG; j++) {
+    const a = i * SEG + j, b = i * SEG + (j + 1) % SEG, c = a + SEG, d = b + SEG;
+    idx.push(a, c, b, b, c, d);
+  }
+  const p = { id: "HEAD", c: "t", r: "head", side: "C", pos: new Float32Array(pos), idx: new Uint16Array(idx) };
+  p.nrm = smoothNormals(p.pos, p.idx);
+  return p;
 }
 
 function smoothNormals(pos, idx) {

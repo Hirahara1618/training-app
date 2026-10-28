@@ -148,7 +148,7 @@ function skinWeights(rig, p, v) {
   if (FORE_BONES[p.id]) return [B.fore, B.fore, 1];
   if (HAND_BONE_IDS.has(p.id) || p.r === "hand") return [B.hand, B.hand, 1];
   if (CERVICAL[p.id] || p.r === "neck") return neck();
-  if (HEAD_BONES[p.id] || p.r === "face") return [1, 1, 1];
+  if (HEAD_BONES[p.id] || p.r === "face" || p.r === "head") return [1, 1, 1];
   if (SHOULDER_BLEND[p.r]) return shoulder(p.r);
   if (p.r === "biceps" || p.r === "triceps") return elbow();
   if (p.r === "forearms") return V.dot(V.sub(v, s.E), s.fHat) < s.Lf * 0.5 ? elbow() : wrist();
