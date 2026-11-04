@@ -204,8 +204,10 @@ test("達成率：予定日・実施・セット・連続週・カレンダー",
   const by = T.trainingByDate(ws, days);
   const cells = T.monthCells(2026, 10, by, days);
   assert.equal(cells.length % 7, 0);
-  assert.ok(cells.slice(0, 3).every((c) => c === null));
-  assert.equal(cells[3].date, "2026-10-01");
+  // 日曜はじまり。2026-10-01 は木曜なので、前に4つ空ける
+  assert.ok(cells.slice(0, 4).every((c) => c === null));
+  assert.equal(cells[4].date, "2026-10-01");
+  assert.equal(T.monthCells(2026, 11, by, days)[0].date, "2026-11-01", "日曜から始まる月は空けない");
   assert.equal(cells.filter(Boolean).length, 31);
   const c5 = cells.find((c) => c && c.date === "2026-10-05");
   assert.equal(c5.plannedDay, true);

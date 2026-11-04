@@ -385,12 +385,12 @@ function weekStreak(workouts, days, today) {
   return streak;
 }
 
-// 月のカレンダーの日（月曜はじまり、前後の月の日は null）。各日に { date, train, plannedDay }
+// 月のカレンダーの日（日曜はじまり、前後の月の日は null）。各日に { date, train, plannedDay }
 function monthCells(year, month /*1-12*/, by, days) {
   const wds = plannedWeekdays(days);
   const first = `${year}-${pad2(month)}-01`;
   const cells = [];
-  for (let i = 1; i < weekdayOf(first); i++) cells.push(null);
+  for (let i = 0; i < weekdayOf(first) % 7; i++) cells.push(null);
   for (let d = first; parseYmd(d).getMonth() + 1 === month; d = addDays(d, 1)) {
     cells.push({ date: d, train: by[d] || null, plannedDay: wds.has(weekdayOf(d)) });
   }

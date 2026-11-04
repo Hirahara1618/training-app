@@ -27,7 +27,7 @@ function calendarHtml(workouts, today) {
       <h3 class="sub">${y}年${m}月</h3>
       <button class="icon" data-cal="1" aria-label="次の月" ${isNow ? "disabled" : ""}>›</button>
     </div>
-    <div class="cal-grid" role="grid">${["月", "火", "水", "木", "金", "土", "日"].map((w) => `<span class="cal-wd">${w}</span>`).join("")}`;
+    <div class="cal-grid" role="grid">${["日", "月", "火", "水", "木", "金", "土"].map((w) => `<span class="cal-wd">${w}</span>`).join("")}`;
   for (const c of cells) {
     if (!c) { h += `<span class="cal-d empty"></span>`; continue; }
     const t = c.train;
