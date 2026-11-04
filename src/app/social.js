@@ -13,7 +13,7 @@ const Social = (() => {
 
   // { token, user: {id, name, friendCode, showWeight, inRanking}, recovery?: 控えてもらう復旧コード, lost?: 無効になった理由,
   //   shared: { 記録のキー: true }（共有した日）, queue: [{ op: "post"|"delete", key, routineTitle?, body? }]（送信待ち）,
-  //   failed?: 送れずにあきらめた理由 }
+  //   failed?: 送れずにあきらめた理由, daysDirty?: ランキング用の日ごとの記録を送り直す必要がある }
   let st = load();
   function load() {
     try { const v = JSON.parse(localStorage.getItem(KEY)); return v && typeof v === "object" ? v : {}; }
@@ -25,7 +25,7 @@ const Social = (() => {
   const on = () => configured() && !!st.token;
 
   // 画面だけの状態（保存しない）
-  const view = { starting: false, links: null, transfer: null, msg: null, timeline: null };
+  const view = { starting: false, links: null, transfer: null, msg: null, timeline: null, rank: null };
 
   // ---- 通信 ----
 
@@ -68,9 +68,30 @@ const Social = (() => {
   // 登録・引き継ぎ・復旧で受け取ったトークンを保存する
   function signedIn(r) {
     view.transfer = null;
-    st = { token: r.token, user: r.user };
+    st = { token: r.token, user: r.user, daysDirty: true };
     if (r.recovery) st.recovery = r.recovery;
     save();
+    flush();
+  }
+
+  // ---- ランキング用の日ごとの記録 ----
+
+  // 先週の月曜から今日までを送る（届いていない日の予定日は、サーバーがルーティンの曜日から決める）
+  function daysPayload() {
+    const today = todayYmd();
+    const days = programDays();
+    return {
+      days: rankingDays(sortedWorkouts(db.get(db.collection("workouts"))), days, addDays(weekStart(today), -7), today),
+      weekdays: Array.from(plannedWeekdays(days)),
+    };
+  }
+  // 記録やルーティンが変わったら呼ぶ。少し待ってまとめて送る
+  let daysTimer = null;
+  function markDays() {
+    if (!on()) return;
+    if (!st.daysDirty) { st.daysDirty = true; save(); }
+    clearTimeout(daysTimer);
+    daysTimer = setTimeout(flush, 1500);
   }
 
   // ---- 共有（送信待ちつき） ----
@@ -124,13 +145,26 @@ const Social = (() => {
   }
   function unshare(wk) { return enqueue({ op: "delete", key: `${wk.date}_${wk.dayKey}` }); }
 
-  // 送信待ちを順に送る。電波がなければ残して、次に開いたとき・オンラインに戻ったときに送り直す
+  // 送信待ち（共有と、ランキング用の日ごとの記録）を順に送る。
+  // 電波がなければ残して、次に開いたとき・オンラインに戻ったときに送り直す
   let flushing = null;
   function flush() {
-    if (!on() || !(st.queue || []).length) return Promise.resolve();
-    if (flushing) return flushing;
+    if (!on() || !((st.queue || []).length || st.daysDirty)) return Promise.resolve();
+    if (flushing) return flushing.then(flush);
     flushing = (async () => {
       try {
+        if (st.daysDirty) {
+          try {
+            st.daysDirty = false;
+            await api("POST", "/days", daysPayload());
+          } catch (e) {
+            // 電波・混雑なら次に送り直す。中身を断られたものは送り直しても通らない
+            if (e.network || e.status === 429 || e.status >= 500) st.daysDirty = true;
+            if (e.code === "lost") return;
+          }
+          save();
+        }
+        st.queue = st.queue || [];
         while (on() && st.queue.length) {
           const o = st.queue[0];
           try {
@@ -189,9 +223,65 @@ const Social = (() => {
     if (view.msg) root.append(h("div", { class: "notice", role: "status" }, view.msg));
     if (!on()) { renderOff(root); return; }
     if (st.recovery) { renderRecovery(root); return; }
-    root.append(timelineSection(), friendsSection(), settingsSection());
+    root.append(rankingSection(), timelineSection(), friendsSection(), settingsSection());
+    loadRanking(root, "this");
     loadTimeline(root);
     loadLinks(root);
+  }
+
+  // ---- ランキング ----
+
+  const METRICS = { rate: "実施率", days: "トレーニング日数" };
+  const metric = () => (uiGet("rankmetric", "rate") === "days" ? "days" : "rate");
+
+  function rankingSection() {
+    return h("section", { class: "card social", id: "s-rank" },
+      h("h3", { class: "sub" }, "今週のランキング"),
+      h("div", { class: "seg", role: "group", "aria-label": "指標" }, Object.keys(METRICS).map((k) =>
+        h("button", { class: "small", "data-act": "s-metric", "data-m": k, "aria-pressed": metric() === k ? "true" : "false" }, METRICS[k]))),
+      h("div", { id: "s-rank-this" }, h("p", { class: "muted small" }, "読み込み中…")),
+      st.user.inRanking ? null : h("p", { class: "muted small" }, "あなたはランキングに参加していません（下の設定で変えられます）。"),
+      h("details", { id: "s-rank-last" }, h("summary", null, "先週の結果"), h("div", { class: "s-rank-body" })),
+      h("p", { class: "muted small" }, "週は月曜から日曜（日本時間）。実施率は、今日までの予定日（ルーティンに曜日を設定した日）のうちトレーニングした日の割合です。今日の分は、トレーニングしたら数えます。"));
+  }
+
+  async function loadRanking(root, week) {
+    const box = week === "this" ? root.querySelector("#s-rank-this") : root.querySelector("#s-rank-last .s-rank-body");
+    if (!box) return;
+    box.replaceChildren(h("p", { class: "muted small" }, "読み込み中…"));
+    try {
+      if (week === "this") await flush(); // 自分の今日までの記録を送ってから
+      view.rank = view.rank || {};
+      view.rank[week] = await api("GET", `/ranking?week=${week}`);
+    } catch (e) {
+      if (e.code === "lost") { render(root); return; }
+      box.replaceChildren(h("p", { class: "muted small" }, e.message));
+      return;
+    }
+    fillRanking(box, view.rank[week]);
+  }
+
+  function fillRanking(box, r) {
+    const m = metric();
+    const rows = r[m];
+    const range = h("p", { class: "muted small" }, `${fmtMD(r.start)}（月）〜${fmtMD(r.end)}（日）`);
+    if (!rows.length) {
+      box.replaceChildren(range, h("p", { class: "muted small" }, m === "rate" ? "予定日のある人がまだいません。" : "参加している人がいません。"));
+      return;
+    }
+    box.replaceChildren(range, h("ol", { class: "s-rank" }, rows.map((x) => h("li", { class: x.me ? "me" : "" },
+      h("span", { class: "s-rank-no" }, String(x.rank)),
+      h("span", { class: "s-name" }, x.name),
+      h("span", { class: "s-rank-val" }, m === "rate" ? `${Math.round(x.value * 100)}%` : `${x.value}日`,
+        m === "rate" ? h("small", null, ` ${x.done}/${x.planned}日`) : null)))));
+  }
+
+  function setMetric(m, root) {
+    uiSet("rankmetric", m);
+    for (const b of root.querySelectorAll('[data-act="s-metric"]')) b.setAttribute("aria-pressed", b.dataset.m === m ? "true" : "false");
+    for (const [week, box] of [["this", root.querySelector("#s-rank-this")], ["last", root.querySelector("#s-rank-last .s-rank-body")]]) {
+      if (box && view.rank && view.rank[week]) fillRanking(box, view.rank[week]);
+    }
   }
 
   // オフのとき：説明と、送る情報・送らない情報、始めるボタン
@@ -381,6 +471,7 @@ const Social = (() => {
     if (act === "s-cancel") { view.starting = false; render(root); return; }
     if (act === "s-copy") { copy(btn.dataset.copy, btn); return; }
     if (act === "s-like") { toggleLike(btn); return; }
+    if (act === "s-metric") { setMetric(btn.dataset.m, root); return; }
     if (act === "s-share") {
       navigator.share({ text: `トレーニング手帳の友達コード：${st.user.friendCode}` }).catch(() => {});
       return;
@@ -462,6 +553,10 @@ const Social = (() => {
       if (b) onClick(b, root);
     });
     root.addEventListener("change", (e) => onChange(e.target, root));
+    // 「先週の結果」を開いたときに読み込む（toggle は親に伝わらないので、捕捉で受ける）
+    root.addEventListener("toggle", (e) => {
+      if (e.target.id === "s-rank-last" && e.target.open) loadRanking(root, "last");
+    }, true);
     // 入力欄で Enter を押したら、隣のボタンを押したことにする
     root.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" || e.target.tagName !== "INPUT" || e.target.type === "checkbox") return;
@@ -480,7 +575,7 @@ const Social = (() => {
     if (tabs) tabs.classList.toggle("six", configured());
   }
 
-  return { config, configured, on, render, bind, applyConfig, postBody, share, unshare, shareState, shareBoxHtml, flush };
+  return { config, configured, on, render, bind, applyConfig, postBody, share, unshare, shareState, shareBoxHtml, flush, markDays };
 })();
 
 function renderFriends(root) { Social.render(root); }

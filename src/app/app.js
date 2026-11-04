@@ -34,6 +34,8 @@ function isEditing() {
 }
 
 function onDataChanged(source) {
+  // 記録やルーティンが変わったら、ランキング用の日ごとの記録を送り直す（仲間の機能がオンのときだけ）
+  Social.markDays();
   const root = tabEl(currentTab);
   if (currentTab === "today") {
     // このタブ自身の保存では描き直さない
@@ -71,6 +73,7 @@ function start() {
   for (const k in TABS) TABS[k].bind(tabEl(k));
   Social.applyConfig();
   // 仲間への共有の送信待ちは、開いたとき・オンラインに戻ったとき・画面に戻ったときに送り直す
+  Social.markDays();
   Social.flush();
   window.addEventListener("online", () => Social.flush());
   document.addEventListener("visibilitychange", () => { if (!document.hidden) Social.flush(); });

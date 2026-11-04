@@ -403,3 +403,18 @@ button.like.on { color: var(--accent); border-color: var(--accent); }
 .s-likers { font-size: 13px; color: var(--muted); min-width: 0; }
 .s-likers summary { cursor: pointer; }
 .s-likers span { display: block; color: var(--text); overflow-wrap: anywhere; }
+.seg { display: flex; gap: 0; margin: 4px 0 8px; }
+.seg button { flex: 1; border-radius: 0; }
+.seg button:first-child { border-radius: 8px 0 0 8px; }
+.seg button:last-child { border-radius: 0 8px 8px 0; border-left: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+ol.s-rank { list-style: none; margin: 4px 0; padding: 0; }
+.s-rank li { display: flex; align-items: baseline; gap: 10px; padding: 6px 8px; border-radius: 8px; }
+.s-rank li.me { background: var(--info-bg); }
+.s-rank li.me .s-name::after { content: "（自分）"; font-weight: 400; color: var(--muted); font-size: 12px; }
+.s-rank-no { font-family: var(--font-num); font-size: 20px; font-weight: 700; width: 1.6em; text-align: right; flex: none; }
+.s-rank .s-name { flex: 1; }
+.s-rank-val { font-family: var(--font-num); font-size: 18px; font-weight: 600; white-space: nowrap; }
+.s-rank-val small { font-size: 13px; color: var(--muted); font-weight: 400; }
+#s-rank-last { margin: 8px 0; }
+#s-rank-last summary { cursor: pointer; font-size: 14px; color: var(--muted); }

@@ -427,3 +427,14 @@ function mergeAliasedExercises(d) {
   }
   return d;
 }
+
+// ランキング用に送る日ごとの記録 [{ date, planned, trained }]（期間 [from, to]）。
+// 予定日はルーティンに曜日を設定した日（カレンダーと同じ）、トレーニングした日は終えたセットが1つ以上ある日
+function rankingDays(workouts, days, from, to) {
+  const wds = plannedWeekdays(days);
+  const done = {};
+  for (const w of workouts) if (w && w.date >= from && w.date <= to && doneSets(w) > 0) done[w.date] = true;
+  const out = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) out.push({ date: d, planned: wds.has(weekdayOf(d)), trained: !!done[d] });
+  return out;
+}

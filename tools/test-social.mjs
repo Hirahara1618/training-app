@@ -312,6 +312,59 @@ try {
     ok("共有の取り消しは2回押して確定し、サーバーから消える");
   }
 
+  // ---- 段階4：ランキング ----
+  {
+    const jst = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+    // 手帳はランキング用の日ごとの記録を送っている（今日は予定日で、終えたセットがある）
+    for (let i = 0; i < 30 && !mock.query("SELECT 1 FROM days WHERE user_id = ? AND date = ?", me.id, jst).length; i++) await pa.waitForTimeout(100);
+    const row = mock.query("SELECT planned, trained FROM days WHERE user_id = ? AND date = ?", me.id, jst)[0];
+    assert.deepEqual({ ...row }, { planned: 1, trained: 1 });
+    assert.equal(mock.query("SELECT plan_weekdays FROM users WHERE id = ?", me.id)[0].plan_weekdays, String(wd));
+    assert.ok(mock.query("SELECT COUNT(*) AS n FROM days WHERE user_id = ?", me.id)[0].n >= 8, "先週の月曜から今日まで");
+
+    // B は今日トレーニングした。A はランキングに参加していない（7. でオフにした）
+    await mock.call("POST", "/days", { days: [{ date: jst, planned: true, trained: true }], weekdays: [wd] }, B.token);
+    await friendsTab(pa);
+    await pa.waitForSelector("#s-rank-this .s-rank");
+    assert.match(await pa.textContent("#s-rank"), /参加していません/);
+    assert.deepEqual(await pa.$$eval("#s-rank-this .s-name", (a) => a.map((x) => x.textContent)), ["<b>ぶんた</b>"]);
+
+    // 参加する → 自分の行を強調
+    await pa.check("#s-ranking");
+    await pa.waitForSelector("#s-rank-this li.me");
+    const rows = await pa.$$eval("#s-rank-this li", (a) => a.map((x) => x.textContent.replace(/\s+/g, " ").trim()));
+    assert.equal(rows.length, 2);
+    assert.ok(rows.every((r) => /^1/.test(r) && /100%/.test(r) && /1\/1日/.test(r)), rows.join(" | "));
+    assert.ok(!/参加していません/.test(await pa.textContent("#s-rank")));
+
+    // 指標の切り替え（選んだものは覚えておく）
+    await pa.click('[data-act="s-metric"][data-m="days"]');
+    assert.equal(await pa.getAttribute('[data-m="days"]', "aria-pressed"), "true");
+    assert.deepEqual(await pa.$$eval("#s-rank-this .s-rank-val", (a) => a.map((x) => x.textContent)), ["1日", "1日"]);
+    assert.equal(await pa.evaluate(() => uiGet("rankmetric")), "days");
+
+    // 先週の結果（開いたときに読み込む）
+    await pa.click("#s-rank-last summary");
+    await pa.waitForFunction(() => /（月）〜/.test(document.querySelector("#s-rank-last .s-rank-body").textContent));
+    await pa.screenshot({ path: path.join(OUT, "social-ranking.png"), fullPage: true });
+    await pa.click('[data-act="s-metric"][data-m="rate"]');
+    ok("ランキング：日ごとの記録を送り、実施率と日数を切り替えて表示、自分の行を強調、先週の結果、不参加の案内");
+
+    // 電波がないときの記録の変更は、オンラインに戻ってから送る
+    mock.offline = true;
+    await pa.click('[data-tab="today"]');
+    await pa.locator('[data-act="done"]').nth(2).click();
+    await pa.waitForFunction(() => JSON.parse(localStorage.getItem("tlog-social-v1")).daysDirty === true);
+    await pa.waitForTimeout(2500); // まとめて送る待ち時間を過ぎても、送れずに残る
+    assert.equal((await social(pa)).daysDirty, true);
+    const n0 = mock.requests.filter((r) => r.path === "/days").length;
+    mock.offline = false;
+    await pa.evaluate(() => window.dispatchEvent(new Event("online")));
+    await pa.waitForFunction(() => !JSON.parse(localStorage.getItem("tlog-social-v1")).daysDirty);
+    assert.ok(mock.requests.filter((r) => r.path === "/days").length > n0);
+    ok("電波がないときの記録の変更は残しておき、オンラインに戻ったら送る");
+  }
+
   // 10. 仲間の解除（2段階）
   {
     await friendsTab(pa);

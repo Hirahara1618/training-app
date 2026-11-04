@@ -215,4 +215,20 @@ test("達成率：予定日・実施・セット・連続週・カレンダー",
   assert.equal(cells.find((c) => c && c.date === "2026-10-19").train, null, "空の記録はなし");
 });
 
+test("ランキング用の日ごとの記録：予定日はルーティンの曜日、実施は終えたセットがある日", () => {
+  const days = [{ key: "a", weekday: 1, exercises: [] }, { key: "b", weekday: 3, exercises: [] }];
+  const wk = [
+    { date: "2026-11-02", dayKey: "a", exercises: [{ id: "bench", sets: [{ w: 60, r: 5, done: true }] }] },
+    { date: "2026-11-03", dayKey: "a", exercises: [{ id: "bench", sets: [{ w: 60, r: 5, done: false }] }] }, // 入力だけで未完了
+    { date: "2026-11-05", dayKey: "a", exercises: [{ id: "c_run", cardio: true, sets: [{ r: 20 }] }] },     // 有酸素は記録があれば
+  ];
+  const r = T.rankingDays(wk, days, "2026-11-02", "2026-11-05");
+  assert.equal(JSON.stringify(r), JSON.stringify([
+    { date: "2026-11-02", planned: true, trained: true },
+    { date: "2026-11-03", planned: false, trained: false },
+    { date: "2026-11-04", planned: true, trained: false },
+    { date: "2026-11-05", planned: false, trained: true },
+  ]));
+});
+
 console.log(`${n} 件すべて通過`);
