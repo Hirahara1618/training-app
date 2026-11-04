@@ -381,8 +381,25 @@ button.cal-d { cursor: pointer; }
 .s-start { margin-top: 12px; }
 ul.plain { list-style: none; margin: 4px 0; padding: 0; }
 ul.plain > li { padding: 3px 0; font-size: 14px; }
-.card.social ul.plain > li:not(.s-person)::before { content: "・"; color: var(--muted); }
+.card.social ul.plain:not(.s-ex) > li:not(.s-person)::before { content: "・"; color: var(--muted); }
 .s-person { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line); }
 .s-person:first-child { border-top: 0; }
 .s-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .s-person .row-btns { flex: none; flex-wrap: nowrap; }
+.share-box { margin: 16px 0 4px; }
+.share-box p { margin: 0 0 8px; color: var(--muted); }
+.share-box .warn { color: var(--warn); margin-top: 8px; }
+.s-post { border-top: 1px solid var(--line); padding: 10px 0 8px; }
+.s-post:first-child { border-top: 0; padding-top: 2px; }
+.s-post header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.s-post header .s-name { max-width: 100%; }
+.s-ex > li { display: flex; gap: 8px; justify-content: space-between; font-size: 14px; }
+.s-ex > li > span:first-child { flex-shrink: 0; max-width: 50%; overflow-wrap: anywhere; }
+.s-ex > li > .muted { font-family: var(--font-num); font-size: 15px; text-align: right; overflow-wrap: anywhere; }
+.s-pb { color: var(--pb); }
+.s-post footer { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+button.like { min-width: 64px; font-size: 15px; }
+button.like.on { color: var(--accent); border-color: var(--accent); }
+.s-likers { font-size: 13px; color: var(--muted); min-width: 0; }
+.s-likers summary { cursor: pointer; }
+.s-likers span { display: block; color: var(--text); overflow-wrap: anywhere; }

@@ -11,7 +11,9 @@ const Social = (() => {
   const configured = () => /^https?:\/\//.test(config.url);
   const KEY = "tlog-social-v1";
 
-  // { token, user: {id, name, friendCode, showWeight, inRanking}, recovery?: 控えてもらう復旧コード, lost?: 無効になった理由 }
+  // { token, user: {id, name, friendCode, showWeight, inRanking}, recovery?: 控えてもらう復旧コード, lost?: 無効になった理由,
+  //   shared: { 記録のキー: true }（共有した日）, queue: [{ op: "post"|"delete", key, routineTitle?, body? }]（送信待ち）,
+  //   failed?: 送れずにあきらめた理由 }
   let st = load();
   function load() {
     try { const v = JSON.parse(localStorage.getItem(KEY)); return v && typeof v === "object" ? v : {}; }
@@ -23,7 +25,7 @@ const Social = (() => {
   const on = () => configured() && !!st.token;
 
   // 画面だけの状態（保存しない）
-  const view = { starting: false, links: null, transfer: null, msg: null };
+  const view = { starting: false, links: null, transfer: null, msg: null, timeline: null };
 
   // ---- 通信 ----
 
@@ -48,7 +50,9 @@ const Social = (() => {
     try {
       res = await fetch(config.url.replace(/\/$/, "") + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
     } catch (e) {
-      throw new Error("通信できませんでした。電波のあるところでもう一度試してください。");
+      const err = new Error("通信できませんでした。電波のあるところでもう一度試してください。");
+      err.network = true;
+      throw err;
     }
     const j = await res.json().catch(() => ({}));
     if (res.status === 401 && st.token) {
@@ -67,6 +71,102 @@ const Social = (() => {
     st = { token: r.token, user: r.user };
     if (r.recovery) st.recovery = r.recovery;
     save();
+  }
+
+  // ---- 共有（送信待ちつき） ----
+
+  // 今日タブの記録 { date, dayKey, title, exercises: [{ def, sets, best }] } から、共有する中身を作る。
+  // 筋トレは完了したセットだけ、有酸素は分の入ったセットだけ。メモ・RIR・強度は入れない。重量は設定で外す
+  function postBody(wk) {
+    const showW = !st.user || st.user.showWeight !== false;
+    const exercises = [];
+    for (const x of wk.exercises) {
+      const d = x.def, sets = [];
+      let pb = false;
+      for (const s of x.sets) {
+        const r = num(s.r);
+        if (r == null || (d.cardio ? !setHasData(s) : !s.done)) continue;
+        const o = {};
+        if (showW && num(s.w) != null) o.w = num(s.w);
+        o.r = r;
+        sets.push(o);
+        if (!d.cardio && setPB(s, x.best, d)) pb = true;
+      }
+      if (!sets.length) continue;
+      const e = { name: d.name, muscle: d.muscle, sets, pb };
+      if (d.cardio) e.cardio = true;
+      if (d.bw) e.bw = true;
+      if (d.unit === "秒") e.unit = "秒";
+      exercises.push(e);
+    }
+    return { exercises };
+  }
+
+  // "shared"（共有済み）, "sending"（送信待ち）, null（共有していない）
+  function shareState(key) {
+    const q = (st.queue || []).filter((o) => o.key === key).pop();
+    if (q) return q.op === "post" ? "sending" : null;
+    return st.shared && st.shared[key] ? "shared" : null;
+  }
+
+  // 送信待ちに入れて送る。同じ日の古い送信待ちは捨てる
+  function enqueue(op) {
+    st.queue = (st.queue || []).filter((o) => o.key !== op.key);
+    st.queue.push(op);
+    st.shared = st.shared || {};
+    if (op.op === "post") st.shared[op.key] = true; else delete st.shared[op.key];
+    delete st.failed;
+    save();
+    return flush();
+  }
+  function share(wk) {
+    return enqueue({ op: "post", key: `${wk.date}_${wk.dayKey}`, routineTitle: (wk.title || "").slice(0, 40), body: postBody(wk) });
+  }
+  function unshare(wk) { return enqueue({ op: "delete", key: `${wk.date}_${wk.dayKey}` }); }
+
+  // 送信待ちを順に送る。電波がなければ残して、次に開いたとき・オンラインに戻ったときに送り直す
+  let flushing = null;
+  function flush() {
+    if (!on() || !(st.queue || []).length) return Promise.resolve();
+    if (flushing) return flushing;
+    flushing = (async () => {
+      try {
+        while (on() && st.queue.length) {
+          const o = st.queue[0];
+          try {
+            if (o.op === "post") await api("POST", "/posts", { key: o.key, routineTitle: o.routineTitle, body: o.body });
+            else await api("POST", "/posts/delete", { key: o.key });
+          } catch (e) {
+            if (e.network || e.status === 429 || e.status >= 500 || e.code === "lost") break;
+            // 中身がサーバーに断られたものは、送り直しても通らないのであきらめる
+            st.failed = `共有できなかった記録があります（${o.key.slice(0, 10)}）：${e.message}`;
+            if (st.shared) delete st.shared[o.key];
+          }
+          // 送っている間に同じ日を共有し直していたら、新しいほうは残す
+          if (st.queue && st.queue[0] === o) st.queue.shift();
+          save();
+        }
+      } finally {
+        flushing = null;
+        if (typeof refreshShare === "function") refreshShare();
+      }
+    })();
+    return flushing;
+  }
+
+  // 今日タブの共有欄（HTML）。仲間の機能がオフ、または完了したセットがなければ空
+  function shareBoxHtml(wk) {
+    if (!on() || !wk || !wk.dayKey || !postBody(wk).exercises.length) return "";
+    const state = shareState(`${wk.date}_${wk.dayKey}`);
+    let h = `<div class="share-box">`;
+    if (state) {
+      h += `<p class="small">${state === "sending" ? "共有の送信待ち（電波が戻ったら送ります）" : "この日の記録を仲間に共有しています"}</p>
+        <div class="row-btns"><button data-act="share">共有を更新</button><button class="ghost" data-act="unshare">共有を取り消す</button></div>`;
+    } else {
+      h += `<button class="primary wide" data-act="share">この日の記録を共有</button>`;
+    }
+    if (st.failed) h += `<p class="small warn">${esc(st.failed)}</p>`;
+    return h + `</div>`;
   }
 
   // ---- 画面 ----
@@ -89,7 +189,8 @@ const Social = (() => {
     if (view.msg) root.append(h("div", { class: "notice", role: "status" }, view.msg));
     if (!on()) { renderOff(root); return; }
     if (st.recovery) { renderRecovery(root); return; }
-    root.append(friendsSection(), settingsSection());
+    root.append(timelineSection(), friendsSection(), settingsSection());
+    loadTimeline(root);
     loadLinks(root);
   }
 
@@ -138,6 +239,72 @@ const Social = (() => {
       h("div", { class: "row-btns" },
         h("button", { "data-act": "s-copy", "data-copy": st.recovery }, "コピー"),
         h("button", { class: "primary", "data-act": "s-recovery-done" }, "控えました"))));
+  }
+
+  function timelineSection() {
+    return section("タイムライン", h("div", { id: "s-timeline" }, h("p", { class: "muted small" }, "読み込み中…")));
+  }
+
+  async function loadTimeline(root) {
+    let posts;
+    try {
+      posts = (await api("GET", "/timeline")).posts;
+    } catch (e) {
+      if (e.code === "lost") { render(root); return; }
+      const box = root.querySelector("#s-timeline");
+      if (box) box.replaceChildren(h("p", { class: "muted small" }, e.message));
+      return;
+    }
+    view.timeline = posts;
+    const box = root.querySelector("#s-timeline");
+    if (!box) return;
+    box.replaceChildren(...(posts.length ? posts.map(postEl)
+      : [h("p", { class: "muted small" }, "まだ共有された記録がありません。今日タブの「この日の記録を共有」から共有できます。")]));
+  }
+
+  // 共有された記録のセット（重量がないときは回数だけ）
+  function fmtPostSet(s, e) {
+    if (e.cardio || s.w != null) return fmtSet(s, e);
+    if (e.unit) return `${fmtNum(s.r)}${e.unit}`;
+    return e.bw ? `自重×${fmtNum(s.r)}` : `${fmtNum(s.r)}回`;
+  }
+
+  function postEl(p) {
+    return h("article", { class: "s-post", "data-post": p.id },
+      h("header", null,
+        h("b", { class: "s-name" }, p.user.name),
+        p.mine ? h("span", { class: "chip" }, "自分") : null,
+        h("span", { class: "muted small" }, `${fmtDate(p.date)}${p.routineTitle ? `・${p.routineTitle}` : ""}`)),
+      h("ul", { class: "plain s-ex" }, p.body.exercises.map((e) => h("li", null,
+        h("span", null, e.name, e.pb ? h("span", { class: "s-pb", title: "自己ベスト" }, " ★") : null),
+        h("span", { class: "muted" }, e.sets.map((s) => fmtPostSet(s, e)).join(" "))))),
+      h("footer", null,
+        h("button", { class: `small like${p.liked ? " on" : ""}`, "data-act": "s-like", "data-id": p.id, "aria-pressed": p.liked ? "true" : "false" },
+          `${p.liked ? "♥" : "♡"} ${p.likes || ""}`),
+        p.likes ? h("details", { class: "s-likers" },
+          h("summary", null, "いいねした人"),
+          h("span", { class: "small" }, [...p.likers, ...(p.likersOther ? [`ほか${p.likersOther}人`] : [])].join("、"))) : null));
+  }
+
+  // 先に表示を変え、サーバーに断られたら戻す
+  async function toggleLike(btn) {
+    const p = (view.timeline || []).find((x) => x.id === btn.dataset.id);
+    if (!p) return;
+    const before = { liked: p.liked, likes: p.likes, likers: p.likers };
+    const me = st.user.name;
+    p.liked = !p.liked;
+    p.likes += p.liked ? 1 : -1;
+    p.likers = p.liked ? [...p.likers, me] : p.likers.filter((n) => n !== me);
+    btn.closest(".s-post").replaceWith(postEl(p));
+    try {
+      const r = await api("POST", "/likes/toggle", { postId: p.id });
+      if (r.liked !== p.liked) throw new Error("いいねの状態がずれました。開き直してください。");
+    } catch (e) {
+      Object.assign(p, before);
+      const cur = document.querySelector(`[data-post="${p.id}"]`);
+      if (cur) cur.replaceWith(postEl(p));
+      if (e.code !== "lost") alert(e.message);
+    }
   }
 
   function friendsSection() {
@@ -213,6 +380,7 @@ const Social = (() => {
     if (act === "s-start") { view.starting = true; render(root); const n = root.querySelector("#s-name"); if (n) n.focus(); return; }
     if (act === "s-cancel") { view.starting = false; render(root); return; }
     if (act === "s-copy") { copy(btn.dataset.copy, btn); return; }
+    if (act === "s-like") { toggleLike(btn); return; }
     if (act === "s-share") {
       navigator.share({ text: `トレーニング手帳の友達コード：${st.user.friendCode}` }).catch(() => {});
       return;
@@ -312,7 +480,7 @@ const Social = (() => {
     if (tabs) tabs.classList.toggle("six", configured());
   }
 
-  return { config, configured, on, render, bind, applyConfig };
+  return { config, configured, on, render, bind, applyConfig, postBody, share, unshare, shareState, shareBoxHtml, flush };
 })();
 
 function renderFriends(root) { Social.render(root); }

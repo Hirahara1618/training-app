@@ -70,6 +70,10 @@ function start() {
 
   for (const k in TABS) TABS[k].bind(tabEl(k));
   Social.applyConfig();
+  // 仲間への共有の送信待ちは、開いたとき・オンラインに戻ったとき・画面に戻ったときに送り直す
+  Social.flush();
+  window.addEventListener("online", () => Social.flush());
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) Social.flush(); });
   RestTimer.init();
   bindSaveBar();
   db.onSnapshot(db.collection(null), onDataChanged);

@@ -134,6 +134,7 @@ function renderToday(root) {
     if (Today.wk.exercises.length) h += `<div class="progress" id="progress">${progressHtml()}</div>`;
     if (!Today.wk.exercises.length) h += `<div class="empty"><p>このルーティンには種目がありません。</p><button data-go="routine">種目を追加する</button></div>`;
     Today.wk.exercises.forEach((x, i) => { h += exerciseCard(x, i, workouts); });
+    h += `<div id="share">${Social.shareBoxHtml(Today.wk)}</div>`;
   }
   root.innerHTML = h;
   setStatus(Today.status === "error" ? "error" : "saved");
@@ -237,9 +238,16 @@ function progressHtml() {
     <p>${r >= 1 ? "全セット完了！おつかれさまでした" : `${done} / ${planned} セット完了（${Math.round(r * 100)}%）`}</p>`;
 }
 
+// 仲間への共有欄を描き直す（セットの完了や、送信待ちが送れたとき）
+function refreshShare() {
+  const el = $("#share");
+  if (el && Today.wk) el.innerHTML = Social.shareBoxHtml(Today.wk);
+}
+
 function changed() {
   const p = $("#progress");
   if (p && Today.wk) p.innerHTML = progressHtml();
+  refreshShare();
   setStatus("unsaved");
   Today.save();
 }
@@ -279,6 +287,13 @@ function bindToday(root) {
       flushToday();
       Today.date = act === "today" ? todayYmd() : addDays(Today.date, act === "prev" ? -1 : 1);
       renderToday(root);
+      return;
+    }
+    if ((act === "share" || act === "unshare") && Today.wk) {
+      if (act === "unshare" && !confirmTwice(b, "もう一度押すと取り消す")) return;
+      flushToday();
+      if (act === "share") Social.share(Today.wk); else Social.unshare(Today.wk);
+      refreshShare();
       return;
     }
     const card = b.closest("[data-i]");

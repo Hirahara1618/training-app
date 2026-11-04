@@ -209,8 +209,112 @@ try {
     ok("復旧コードで戻すと新しい復旧コードを表示し、つながりはそのまま");
   }
 
+  // ---- 段階3：共有・タイムライン・いいね ----
+  const myPosts = () => mock.query("SELECT key, body_json FROM posts WHERE user_id = ?", me.id);
+  const shareText = () => pa.textContent("#share");
+  {
+    // 重量を載せる設定に戻しておく
+    await pa.check("#s-weight");
+    await pa.waitForFunction(() => document.querySelector("#s-weight") && document.querySelector("#s-weight").checked && !document.querySelector("#s-weight").disabled);
+    // 今日タブ（3. で 60kg のセットを1つ完了している）に共有ボタン。電波がない状態で押す
+    mock.offline = true;
+    await pa.click('[data-tab="today"]');
+    await pa.click('#share [data-act="share"]');
+    await pa.waitForFunction(() => /送信待ち/.test(document.querySelector("#share").textContent));
+    assert.equal(myPosts().length, 0);
+    assert.equal((await social(pa)).queue.length, 1);
+    // オンラインに戻ると送る
+    mock.offline = false;
+    await pa.evaluate(() => window.dispatchEvent(new Event("online")));
+    await pa.waitForFunction(() => /共有しています/.test(document.querySelector("#share").textContent));
+    const p = myPosts();
+    assert.equal(p.length, 1);
+    assert.deepEqual(JSON.parse(p[0].body_json), { exercises: [{ name: "ベンチプレス", muscle: "胸", sets: [{ w: 60, r: 5 }], pb: false }] }, "完了したセットだけ、RIR・メモなし");
+    assert.equal((await social(pa)).queue.length, 0);
+    ok("電波がないときに共有すると送信待ちになり、オンラインに戻ると送る");
+
+    // 電波がないまま記録を足して「共有を更新」→ 開き直したら送る
+    mock.offline = true;
+    await pa.locator('[data-f="w"]').nth(1).fill("62.5");
+    await pa.locator('[data-f="r"]').nth(1).fill("6");
+    await pa.locator('[data-act="done"]').nth(1).click();
+    await pa.click('#share [data-act="share"]');
+    await pa.waitForFunction(() => /送信待ち/.test(document.querySelector("#share").textContent));
+    await pa.waitForTimeout(900); // 記録の自動保存
+    mock.offline = false;
+    await pa.reload();
+    await pa.evaluate((url) => { Social.config.url = url; Social.applyConfig(); return Social.flush(); }, SERVER); // 本番では開いたときに送る
+    await pa.waitForFunction(() => /共有しています/.test(document.querySelector("#share").textContent));
+    assert.deepEqual(JSON.parse(myPosts()[0].body_json).exercises[0].sets, [{ w: 60, r: 5 }, { w: 62.5, r: 6 }]);
+    assert.equal(myPosts().length, 1, "同じ日は上書き");
+    await pa.screenshot({ path: path.join(OUT, "social-share.png"), fullPage: true });
+    ok("送信待ちは、次に開いたときにも送り直す。共有し直すと上書き");
+  }
+  {
+    // 仲間（B）の共有と、B から A へのいいね
+    const t = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+    const pb = await mock.call("POST", "/posts", { key: `${t}_b1`, routineTitle: "<i>脚の日</i>", body: { exercises: [
+      { name: "スクワット", muscle: "前もも", pb: true, sets: [{ w: 80, r: 5 }, { w: 80, r: 5 }] },
+      { name: "プランク", muscle: "腹", bw: true, unit: "秒", sets: [{ r: 60 }] },
+      { name: "エアロバイク", muscle: "有酸素", cardio: true, sets: [{ w: 8.5, r: 20 }] },
+    ] } }, B.token);
+    const aPost = mock.query("SELECT id FROM posts WHERE user_id = ?", me.id)[0].id;
+    await mock.call("POST", "/likes/toggle", { postId: aPost }, B.token);
+    await pa.click('[data-tab="friends"]');
+    await pa.waitForSelector(".s-post");
+    const posts = await pa.$$eval(".s-post", (a) => a.map((x) => x.textContent.replace(/\s+/g, " ").trim()));
+    assert.equal(posts.length, 2);
+    const bp = posts.find((x) => x.includes("スクワット"));
+    assert.match(bp, /<b>ぶんた<\/b>/);
+    assert.match(bp, /<i>脚の日<\/i>/);
+    assert.match(bp, /スクワット ★\s*80×5 80×5/);
+    assert.match(bp, /プランク\s*60秒/);
+    assert.match(bp, /エアロバイク\s*20分 8\.5km/);
+    assert.equal(await pa.$$eval("#s-timeline b:not(.s-name), #s-timeline i", (a) => a.length), 0, "名前や題名を HTML にしない");
+    const ap = posts.find((x) => x.includes("自分"));
+    assert.match(ap, /♡ 1/);
+    // 押した人の名前
+    await pa.locator(`[data-post="${aPost}"] summary`).click();
+    assert.match(await pa.textContent(`[data-post="${aPost}"] .s-likers span`), /<b>ぶんた<\/b>/);
+    // A が B の投稿にいいね → 取り消し
+    const like = () => pa.locator(`[data-post="${pb.post.id}"] [data-act="s-like"]`);
+    await like().click();
+    await pa.waitForFunction((id) => document.querySelector(`[data-post="${id}"] .like`).getAttribute("aria-pressed") === "true", pb.post.id);
+    assert.equal(mock.query("SELECT COUNT(*) AS n FROM likes WHERE post_id = ? AND user_id = ?", pb.post.id, me.id)[0].n, 1);
+    assert.match(await like().textContent(), /♥ 1/);
+    await pa.screenshot({ path: path.join(OUT, "social-timeline.png"), fullPage: true });
+    await like().click();
+    await pa.waitForFunction((id) => document.querySelector(`[data-post="${id}"] .like`).getAttribute("aria-pressed") === "false", pb.post.id);
+    await pa.waitForTimeout(200);
+    assert.equal(mock.query("SELECT COUNT(*) AS n FROM likes WHERE post_id = ? AND user_id = ?", pb.post.id, me.id)[0].n, 0);
+    // サーバーに断られたら表示を戻す
+    mock.offline = true;
+    await like().click();
+    await pa.waitForFunction((id) => document.querySelector(`[data-post="${id}"] .like`).getAttribute("aria-pressed") === "false", pb.post.id);
+    mock.offline = false;
+    ok("タイムライン：仲間と自分の共有（重量・自重・秒・有酸素の表示）、いいねと取り消し、押した人の名前、失敗したら元に戻す");
+
+    // 重量を載せないにすると、タイムラインからも重量が消える
+    await pa.uncheck("#s-weight");
+    await pa.waitForFunction(() => document.querySelector("#s-weight") && !document.querySelector("#s-weight").checked && !document.querySelector("#s-weight").disabled);
+    await pa.waitForFunction(() => /ベンチプレス\s*5回 6回/.test(document.querySelector("#s-timeline").textContent));
+    ok("重量を載せない設定にすると、共有済みの記録も回数だけになる");
+
+    // 共有の取り消し（2段階）
+    await pa.click('[data-tab="today"]');
+    const un = pa.locator('#share [data-act="unshare"]');
+    await un.click();
+    assert.equal(myPosts().length, 1, "1回目では取り消さない");
+    await un.click();
+    await pa.waitForFunction(() => /この日の記録を共有/.test(document.querySelector("#share").textContent));
+    for (let i = 0; i < 20 && myPosts().length; i++) await pa.waitForTimeout(100);
+    assert.equal(myPosts().length, 0);
+    ok("共有の取り消しは2回押して確定し、サーバーから消える");
+  }
+
   // 10. 仲間の解除（2段階）
   {
+    await friendsTab(pa);
     const rm = pa.locator('[data-act="s-remove"]', { hasText: "解除" });
     await rm.click();
     await rm.click();

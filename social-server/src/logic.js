@@ -71,7 +71,7 @@ const MUSCLES = ["胸", "背中", "肩", "二頭", "三頭", "前もも", "も�
 const okNum = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 10000;
 
 // 投稿の中身を決まった形に作り直す。知らない項目は捨てる。showWeight がオフなら重量を捨てる。
-// 返り値 { exercises: [{ name, muscle, sets: [{ w?, r }], pb, cardio?, bw? }] } または null（形が正しくない）
+// 返り値 { exercises: [{ name, muscle, sets: [{ w?, r }], pb, cardio?, bw?, unit? }] } または null（形が正しくない）
 export function cleanPostBody(body, showWeight) {
   if (!body || !Array.isArray(body.exercises) || !body.exercises.length || body.exercises.length > 30) return null;
   const exercises = [];
@@ -90,6 +90,7 @@ export function cleanPostBody(body, showWeight) {
     const x = { name, muscle: e.muscle, sets, pb: e.pb === true };
     if (e.cardio === true) x.cardio = true;
     if (e.bw === true) x.bw = true;
+    if (e.unit === "秒") x.unit = "秒"; // プランクなど、回数の欄が秒の種目
     exercises.push(x);
   }
   return { exercises };

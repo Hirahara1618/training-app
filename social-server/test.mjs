@@ -42,6 +42,8 @@ test("投稿の中身：決まった形だけ残し、重量を載せない設�
   const body = { exercises: [{ name: "ベンチプレス", muscle: "胸", pb: true, note: "メモ", sets: [{ w: 60, r: 8, rir: 1, done: true }] }], weight: 70 };
   assert.deepEqual(L.cleanPostBody(body, true), { exercises: [{ name: "ベンチプレス", muscle: "胸", sets: [{ w: 60, r: 8 }], pb: true }] });
   assert.deepEqual(L.cleanPostBody(body, false), { exercises: [{ name: "ベンチプレス", muscle: "胸", sets: [{ r: 8 }], pb: true }] });
+  assert.equal(L.cleanPostBody({ exercises: [{ name: "プランク", muscle: "腹", unit: "秒", sets: [{ r: 60 }] }] }, true).exercises[0].unit, "秒");
+  assert.equal(L.cleanPostBody({ exercises: [{ name: "x", muscle: "腹", unit: "<b>", sets: [{ r: 60 }] }] }, true).exercises[0].unit, undefined);
   assert.equal(L.cleanPostBody({ exercises: [] }, true), null);
   assert.equal(L.cleanPostBody({ exercises: [{ name: "x", muscle: "首", sets: [{ r: 1 }] }] }, true), null);
   assert.equal(L.cleanPostBody({ exercises: [{ name: "x", muscle: "胸", sets: [{ r: -1 }] }] }, true), null);
