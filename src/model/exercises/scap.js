@@ -16,7 +16,6 @@ const SCAP_MOTION = {
   c_dbrow: { from: { pro: 0.03 }, to: { pro: -0.028 }, side: -1 },
   // 押す（寝て・座って）：寄せて下げたまま
   bench: { from: { pro: -0.015, elev: -0.005 }, to: { pro: -0.015, elev: -0.005 } },
-  bench8: { from: { pro: -0.015, elev: -0.005 }, to: { pro: -0.015, elev: -0.005 } },
   c_cgbench: { from: { pro: -0.015, elev: -0.005 }, to: { pro: -0.015, elev: -0.005 } },
   c_inbench: { from: { pro: -0.015, elev: -0.005 }, to: { pro: -0.015, elev: -0.005 } },
   c_dbpress: { from: { pro: -0.015, elev: -0.005 }, to: { pro: -0.012, elev: -0.005 } },

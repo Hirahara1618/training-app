@@ -17,16 +17,39 @@ const T = ctx;
 let n = 0;
 const test = (name, fn) => { fn(); n++; console.log(`  ok  ${name}`); };
 
-test("カタログ：80種目・模型71・ID重複なし・部位が正しい", () => {
-  assert.equal(T.CATALOG.list.length, 80);
-  assert.equal(T.CATALOG.list.filter((e) => e.model).length, 71);
-  assert.equal(new Set(T.CATALOG.list.map((e) => e.id)).size, 80);
+test("カタログ：79種目・模型70・ID重複なし・部位が正しい", () => {
+  assert.equal(T.CATALOG.list.length, 79);
+  assert.equal(T.CATALOG.list.filter((e) => e.model).length, 70);
+  assert.equal(new Set(T.CATALOG.list.map((e) => e.id)).size, 79);
   for (const e of T.CATALOG.list) assert.ok(T.MUSCLES.includes(e.muscle), e.id);
   assert.equal(T.CATALOG.byId.c_goblet.inc, 2);
   assert.equal(T.CATALOG.byId.dips.bw, true);
   assert.equal(T.CATALOG.byId.c_run.cardio, true);
   assert.equal(T.hasModel("c_run"), false);
-  assert.equal(T.hasModel("bench8"), true);
+  assert.equal(T.CATALOG.byId.bench8, undefined);
+});
+
+test("まとめた種目：bench8 の記録とルーティンは bench に読み替え、同じ日は1つにまとめる", () => {
+  const d = {
+    program: { current: { days: [
+      { key: "a", exercises: [{ id: "bench8", name: "ベンチプレス（8回）", sets: 3, repMin: 8, repMax: 8 }] },
+      { key: "b", exercises: [{ id: "bench", name: "ベンチプレス" }, { id: "bench8", name: "ベンチプレス（8回）" }, { id: "squat" }] },
+    ] } },
+    workouts: {
+      "2026-10-01_a": { date: "2026-10-01", exercises: [{ id: "bench8", name: "ベンチプレス（8回）", sets: [{ w: 60, r: 8 }] }] },
+      "2026-10-02_b": { date: "2026-10-02", exercises: [{ id: "bench", sets: [{ w: 60, r: 5 }] }, { id: "bench8", sets: [{ w: 55, r: 8 }] }] },
+    },
+  };
+  T.mergeAliasedExercises(d);
+  const [a, b] = d.program.current.days;
+  assert.equal(JSON.stringify(a.exercises.map((e) => [e.id, e.name, e.repMin])), JSON.stringify([["bench", "ベンチプレス", 8]]));
+  assert.equal(b.exercises.map((e) => e.id).join(), "bench,squat");
+  assert.equal(d.workouts["2026-10-01_a"].exercises[0].id, "bench");
+  const w2 = d.workouts["2026-10-02_b"].exercises;
+  assert.equal(w2.length, 1);
+  assert.equal(w2[0].sets.map((s) => s.w).join(), "60,55");
+  const h = T.exerciseHistory(T.sortedWorkouts(d.workouts), "bench");
+  assert.equal(h.length, 2);
 });
 
 const bench = { ...T.CATALOG.byId.bench }; // 3×5–8, 刻み2.5

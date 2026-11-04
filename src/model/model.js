@@ -152,6 +152,7 @@ function groundTable(def) {
 
 function selectExercise(id) {
   const r = View.renderer;
+  if (ID_ALIASES[id]) id = ID_ALIASES[id];
   const def = EXERCISES[id] || null;
   View.ex = def;
   $("#ex").value = def ? id : "";

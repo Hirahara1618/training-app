@@ -78,6 +78,22 @@ function start() {
     const g = e.target.closest("[data-go]");
     if (g) showTab(g.dataset.go);
   });
+  // 数字の欄は、触ったら中身を全部選ぶ（そのまま打てば上書きになる）。
+  // iOS はフォーカスの直後にカーソルを置き直すので、少し待ってから選ぶ
+  document.addEventListener("focusin", (e) => {
+    const el = e.target;
+    if (el.tagName !== "INPUT" || !/^(decimal|numeric)$/.test(el.inputMode) || !el.value) return;
+    setTimeout(() => {
+      if (document.activeElement === el) el.setSelectionRange(0, el.value.length);
+    }, 0);
+  });
+  // パソコンでは、クリックを離したときに選択が外れるので、フォーカスした直後の1回だけ止める
+  document.addEventListener("mousedown", (e) => {
+    const el = e.target;
+    if (el.tagName !== "INPUT" || document.activeElement === el || !/^(decimal|numeric)$/.test(el.inputMode)) return;
+    el.addEventListener("mouseup", (u) => u.preventDefault(), { once: true });
+  });
+
   // 画面を離れるときは待たずに保存
   document.addEventListener("visibilitychange", () => { if (document.hidden) flushToday(); });
   window.addEventListener("pagehide", flushToday);

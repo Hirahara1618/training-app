@@ -397,3 +397,33 @@ function monthCells(year, month /*1-12*/, by, days) {
   while (cells.length % 7) cells.push(null);
   return cells;
 }
+
+// まとめた種目のID（ID_ALIASES）を、ルーティンと記録の中で新しいIDに読み替える。
+// 同じルーティン・同じ日の記録にすでに新しいIDがあれば、1つにまとめる（記録のセットは後ろにつなげる）。
+// d は保存データ全体。その場で書き換えて返す
+function mergeAliasedExercises(d) {
+  const target = (id) => (Object.prototype.hasOwnProperty.call(ID_ALIASES, id) ? ID_ALIASES[id] : null);
+  const fold = (list, mergeInto) => {
+    if (!Array.isArray(list) || !list.some((e) => e && target(e.id))) return list;
+    const out = [];
+    for (const e of list) {
+      const to = e && target(e.id);
+      if (to) {
+        e.id = to;
+        if (CATALOG.byId[to]) e.name = CATALOG.byId[to].name;
+      }
+      const same = e && out.find((x) => x && x.id === e.id);
+      if (same) mergeInto(same, e);
+      else out.push(e);
+    }
+    return out;
+  };
+  const cur = d.program && d.program.current;
+  for (const day of (cur && Array.isArray(cur.days) ? cur.days : [])) {
+    if (day) day.exercises = fold(day.exercises, () => {});
+  }
+  for (const w of Object.values(d.workouts || {})) {
+    if (w) w.exercises = fold(w.exercises, (a, b) => { a.sets = (a.sets || []).concat(b.sets || []); });
+  }
+  return d;
+}

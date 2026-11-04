@@ -19,7 +19,8 @@ function normalizeData(d) {
   for (const c of COLLECTIONS) {
     if (!out[c] || typeof out[c] !== "object" || Array.isArray(out[c])) out[c] = {};
   }
-  return out;
+  // まとめた種目の古いIDを読み替える（ID_ALIASES）。次に書き込むときに保存される
+  return mergeAliasedExercises(out);
 }
 
 function createLocalDb(key) {

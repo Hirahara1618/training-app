@@ -41,7 +41,6 @@ function benchPress(id, o) {
   });
 }
 benchPress("bench", { gx: 0.38, pole: (sg) => [sg, -0.7, 0.45], roles: { main: ["pecs"], sub: ["delts", "triceps"], support: ["serratus", "lats"] } });
-benchPress("bench8", { gx: 0.38, pole: (sg) => [sg, -0.7, 0.45], roles: { main: ["pecs"], sub: ["delts", "triceps"], support: ["serratus", "lats"] } });
 
 // ダンベルプレス（平らなベンチ）
 defineExercise({

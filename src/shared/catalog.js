@@ -11,7 +11,6 @@ var CATALOG = (function () {
   var rows = {
     "胸": [
       ["bench", "ベンチプレス", 3, 5, 8, "1〜2", 180, 2.5, "M"],
-      ["bench8", "ベンチプレス（8回）", 3, 8, 8, "2", 150, 2.5, "MH"],
       ["c_inbench", "インクラインベンチプレス", 3, 6, 10, "1〜2", 150, 2.5, "M"],
       ["c_dbpress", "ダンベルプレス", 3, 8, 12, "1〜2", 120, 1, "M"],
       ["idpress", "インクラインダンベルプレス", 3, 8, 12, "1〜2", 120, 1, "M"],
@@ -133,6 +132,9 @@ var CATALOG = (function () {
   list.forEach(function (e) { byId[e.id] = e; });
   return { list: list, byId: byId };
 })();
+
+// 以前あって、別の種目にまとめたID（古い記録・リンクを読み替える）
+var ID_ALIASES = { bench8: "bench" };
 
 // 模型で動きを見られる種目か
 function hasModel(id) {
