@@ -10,6 +10,7 @@ const TABS = {
   weight: { render: renderWeight, bind: bindWeight },
   history: { render: renderHistory, bind: bindHistory },
   routine: { render: renderRoutine, bind: bindRoutine },
+  friends: { render: renderFriends, bind: bindFriends },
 };
 
 function tabEl(name) { return $(`#tab-${name}`); }
@@ -39,6 +40,8 @@ function onDataChanged(source) {
     if (source === "remote" && !(Today.save && Today.save.pending()) && !isEditing()) renderToday(root);
     return;
   }
+  // 仲間タブは手帳の記録を表示しない（描き直すと入力中の文字が消える）
+  if (currentTab === "friends") return;
   if (currentTab === "routine") {
     if (!Routine.dirty) { Routine.draft = null; renderRoutine(root); }
     return;
@@ -66,6 +69,7 @@ function start() {
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
   for (const k in TABS) TABS[k].bind(tabEl(k));
+  Social.applyConfig();
   RestTimer.init();
   bindSaveBar();
   db.onSnapshot(db.collection(null), onDataChanged);

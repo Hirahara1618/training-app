@@ -7,6 +7,7 @@
 //     → ファイルを base64 にして埋め込む（模型のメッシュ用。パスはリポジトリのルートから）
 // どのファイルでも __VERSION__ は版の文字列に置き換える。
 // __PUSH_URL__ / __PUSH_KEY__ は休憩通知のサーバーの場所と公開鍵（push-server/client.json。なければ空＝通知なし）。
+// __SOCIAL_URL__ は仲間の機能のサーバーの場所（social-server/client.json。なければ空＝仲間タブを出さない）。
 
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -29,9 +30,11 @@ function read(p) {
 
 const pushFile = path.join(ROOT, "push-server/client.json");
 const PUSH = fs.existsSync(pushFile) ? JSON.parse(fs.readFileSync(pushFile, "utf8")) : {};
+const socialFile = path.join(ROOT, "social-server/client.json");
+const SOCIAL = fs.existsSync(socialFile) ? JSON.parse(fs.readFileSync(socialFile, "utf8")) : {};
 
 function stamped(text) {
-  return text.replaceAll("__VERSION__", VERSION).replaceAll("__PUSH_URL__", PUSH.url || "").replaceAll("__PUSH_KEY__", PUSH.key || "");
+  return text.replaceAll("__VERSION__", VERSION).replaceAll("__PUSH_URL__", PUSH.url || "").replaceAll("__PUSH_KEY__", PUSH.key || "").replaceAll("__SOCIAL_URL__", SOCIAL.url || "");
 }
 
 function bundleHtml(file) {

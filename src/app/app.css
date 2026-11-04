@@ -365,3 +365,24 @@ button.cal-d { cursor: pointer; }
 .progress .bar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; transition: width .2s; }
 .progress .bar i.full { background: var(--good); }
 .progress p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+
+/* 仲間タブ */
+.tabs.six button { font-size: 12.5px; letter-spacing: -0.04em; }
+.card.social p { margin: 6px 0; }
+.card.social h4 { font-size: 13px; color: var(--muted); font-weight: 600; margin: 14px 0 4px; }
+.card.social label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); margin: 8px 0; }
+.card.social label input { color: var(--text); }
+.card.social label.s-check { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--text); margin: 12px 0 2px; }
+.s-check input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
+.s-inline { display: flex; gap: 8px; margin: 8px 0; }
+.s-inline input { flex: 1; }
+.s-inline button { flex: none; }
+.s-code { font-family: var(--font-num); font-size: 26px; font-weight: 600; letter-spacing: 0.06em; overflow-wrap: anywhere; user-select: all; -webkit-user-select: all; }
+.s-start { margin-top: 12px; }
+ul.plain { list-style: none; margin: 4px 0; padding: 0; }
+ul.plain > li { padding: 3px 0; font-size: 14px; }
+.card.social ul.plain > li:not(.s-person)::before { content: "・"; color: var(--muted); }
+.s-person { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line); }
+.s-person:first-child { border-top: 0; }
+.s-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.s-person .row-btns { flex: none; flex-wrap: nowrap; }
