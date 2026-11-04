@@ -1,0 +1,18 @@
+# 仲間とのランキングと記録の共有のサーバー。デプロイ手順は README.md
+name = "training-social"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+# 受け付ける手帳の場所（本番・dev はどちらも github.io、テスト用に localhost）
+ALLOWED_ORIGINS = "https://hirahara1618.github.io,http://localhost:8080"
+# 1分あたりの上限（ログイン済みは1人ごと、登録・引き継ぎ・復旧は接続元ごと）
+RATE_USER = "120"
+RATE_IP = "10"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "training-social"
+# `npx wrangler d1 create training-social` で表示される ID に置き換える（手元のテストでは使わない）
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
