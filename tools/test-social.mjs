@@ -16,7 +16,9 @@ const OUT = path.resolve(process.argv[2] || path.join(ROOT, "tools/out"));
 fs.mkdirSync(OUT, { recursive: true });
 const PORT = 8094;
 const URL = `http://localhost:${PORT}/`;
-const SERVER = "https://social.test";
+// ビルドにサーバーの場所が入っていれば（social-server/client.json）その場所をモックで受ける。本番には一切つながない
+const clientFile = path.join(ROOT, "social-server/client.json");
+const SERVER = (fs.existsSync(clientFile) && JSON.parse(fs.readFileSync(clientFile, "utf8")).url) || "https://social.test";
 
 const server = spawn(process.execPath, [path.join(ROOT, "tools/serve.mjs"), path.join(ROOT, "dist"), String(PORT)], { stdio: "ignore" });
 await new Promise((r) => setTimeout(r, 500));
@@ -39,13 +41,15 @@ async function device({ configure = true } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await ctx.addInitScript((data) => { if (!localStorage.getItem("tlog-data-v1")) localStorage.setItem("tlog-data-v1", data); }, JSON.stringify(DATA));
   await mock.attach(ctx, SERVER);
+  // 本番のサーバーには検査から一切つながない（つながろうとしたら失敗として記録する）
+  await ctx.route((u) => /workers\.dev/.test(u.href) && !u.href.startsWith(SERVER), (route) => { errors.push(`モック外への通信: ${route.request().url()}`); route.abort(); });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
   page.on("dialog", (d) => d.accept());
   await page.goto(URL);
   await page.waitForSelector(".tabs");
-  // 本番のビルドでは social-server/client.json から入る
-  if (configure) await page.evaluate((url) => { Social.config.url = url; Social.applyConfig(); }, SERVER);
+  // 本番のビルドでは social-server/client.json から入る。検査ではモックか、未設定（空）に差し替える
+  await page.evaluate((url) => { Social.config.url = url; Social.applyConfig(); }, configure ? SERVER : "");
   return { ctx, page };
 }
 const friendsTab = async (page) => { await page.click('[data-tab="today"]'); await page.click('[data-tab="friends"]'); };

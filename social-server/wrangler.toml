@@ -13,6 +13,6 @@ RATE_IP = "10"
 [[d1_databases]]
 binding = "DB"
 database_name = "training-social"
-# `npx wrangler d1 create training-social` で表示される ID に置き換える（手元のテストでは使わない）
-database_id = "00000000-0000-0000-0000-000000000000"
+# `npx wrangler d1 create training-social` で作成した ID
+database_id = "4b20a4ce-feeb-47b6-90f4-a951ea9fc956"
 migrations_dir = "migrations"
