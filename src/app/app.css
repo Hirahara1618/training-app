@@ -90,6 +90,12 @@ input, select, textarea {
   width: 100%;
 }
 textarea { resize: vertical; }
+/* iOS Safari の日付入力はネイティブの最小幅があり、親からはみ出すため見た目をリセットする */
+input[type="date"] {
+  -webkit-appearance: none; appearance: none;
+  display: block; max-width: 100%; min-height: 2.4em; text-align: left;
+}
+input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 button, .button {
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
@@ -251,7 +257,7 @@ h3.sub small { font-weight: 400; color: var(--muted); font-size: 12px; margin-le
 
 /* ---- 体重 ---- */
 .bw-form { display: grid; gap: 8px; align-items: end; }
-.bw-form label { font-size: 12px; color: var(--muted); display: grid; gap: 2px; }
+.bw-form label { font-size: 12px; color: var(--muted); display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; min-width: 0; }
 .bw-form input { color: var(--text); }
 .bw-form #bw-kg { font-family: var(--font-num); font-size: 19px; }
 .seg { display: flex; gap: 4px; margin: 14px 0 0; overflow-x: auto; }
