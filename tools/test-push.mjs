@@ -36,7 +36,7 @@ const DATA = {
 };
 
 async function newPage(init) {
-  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, timezoneId: process.env.TZ || undefined });
   await ctx.addInitScript(([data, init]) => {
     if (!localStorage.getItem("tlog-data-v1")) localStorage.setItem("tlog-data-v1", data);
     if (init) (0, eval)(init);

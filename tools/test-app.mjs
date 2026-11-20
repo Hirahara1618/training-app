@@ -29,7 +29,7 @@ const ok = (msg) => console.log(`  ok  ${++step}. ${msg}`);
 async function newPage(opts = {}) {
   const ctx = await browser.newContext({
     viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
-    colorScheme: opts.dark ? "dark" : "light", acceptDownloads: true,
+    colorScheme: opts.dark ? "dark" : "light", acceptDownloads: true, timezoneId: process.env.TZ || undefined,
   });
   // ヘッドレスでは共有シートが出せないので、ダウンロードで書き出させる
   await ctx.addInitScript(() => { Object.defineProperty(navigator, "canShare", { value: undefined }); });

@@ -38,7 +38,7 @@ const DATA = {
 };
 
 async function device({ configure = true } = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, timezoneId: process.env.TZ || undefined });
   await ctx.addInitScript((data) => { if (!localStorage.getItem("tlog-data-v1")) localStorage.setItem("tlog-data-v1", data); }, JSON.stringify(DATA));
   await mock.attach(ctx, SERVER);
   // 本番のサーバーには検査から一切つながない（つながろうとしたら失敗として記録する）
@@ -318,7 +318,8 @@ try {
 
   // ---- 段階4：ランキング ----
   {
-    const jst = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+    // 手帳は端末の日付で送る（日本時間ではない。CI は UTC なので、日本時間0〜9時に push すると日付がずれる）
+    const jst = await pa.evaluate(() => todayYmd());
     // 手帳はランキング用の日ごとの記録を送っている（今日は予定日で、終えたセットがある）
     for (let i = 0; i < 30 && !mock.query("SELECT 1 FROM days WHERE user_id = ? AND date = ?", me.id, jst).length; i++) await pa.waitForTimeout(100);
     const row = mock.query("SELECT planned, trained FROM days WHERE user_id = ? AND date = ?", me.id, jst)[0];
